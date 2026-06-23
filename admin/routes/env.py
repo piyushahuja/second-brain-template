@@ -34,6 +34,14 @@ def write_env(pairs: dict):
     ENV_PATH.write_text('\n'.join(lines) + '\n')
 
 
+def write_env_key(key: str, value: str):
+    """Write or update a single key in deploy/.env. Also sets os.environ."""
+    pairs = read_env()
+    pairs[key] = value
+    write_env(pairs)
+    os.environ[key] = value
+
+
 @bp.route('/env')
 def get_env():
     """Return all env vars (secrets masked)."""
