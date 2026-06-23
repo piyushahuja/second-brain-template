@@ -215,6 +215,33 @@ def claude_auth_submit():
     except Exception:
         pass
 
+    # Mark onboarding complete so interactive CLI doesn't prompt again
+    try:
+        claude_dir = _pl.Path.home() / '.claude'
+        claude_dir.mkdir(parents=True, exist_ok=True)
+
+        # Update settings.json with onboarding-complete markers
+        settings_path = claude_dir / 'settings.json'
+        settings = {}
+        if settings_path.exists():
+            try:
+                settings = _json.loads(settings_path.read_text())
+            except Exception:
+                pass
+        settings.setdefault('theme', 'dark')
+        settings['hasCompletedOnboarding'] = True
+        settings['skipDangerousModePermissionPrompt'] = True
+        settings_path.write_text(_json.dumps(settings, indent=2))
+
+        # Create settings.local.json if missing (indicates setup is complete)
+        local_settings_path = claude_dir / 'settings.local.json'
+        if not local_settings_path.exists():
+            local_settings_path.write_text(_json.dumps({
+                "permissions": {"allow": [], "deny": [], "ask": []}
+            }, indent=2))
+    except Exception:
+        pass
+
     result = subprocess.run(['claude', 'auth', 'status'], capture_output=True, text=True, timeout=10)
     try:
         data = _json.loads(result.stdout.strip())
