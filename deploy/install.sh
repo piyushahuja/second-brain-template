@@ -122,17 +122,26 @@ echo "Python: $("$PYTHON" --version)"
 
 echo ""
 echo "Installing Claude CLI..."
+
+# Ensure nvm is loaded (may already be installed from previous run)
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    # shellcheck disable=SC1091
+    source "$NVM_DIR/nvm.sh"
+fi
+
 if ! command -v node &> /dev/null; then
     echo "Node.js not found. Installing via nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    # shellcheck disable=SC1091
-    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    nvm install --lts --silent
+    if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        # shellcheck disable=SC1091
+        source "$NVM_DIR/nvm.sh"
+    fi
+    nvm install --lts
 fi
 
 if ! command -v claude &> /dev/null; then
-    npm install -g @anthropic-ai/claude-code --silent
+    npm install -g @anthropic-ai/claude-code
 fi
 
 echo "Claude: $(claude --version 2>/dev/null || echo 'not found')"
