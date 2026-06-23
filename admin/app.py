@@ -5,14 +5,21 @@ Serves at http://VPS_IP:8080/admin (protected by ADMIN_TOKEN header).
 """
 
 import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path so imports work when run directly
+SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
 from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
 # Register route blueprints
-from admin.routes.crons import bp as crons_bp
-from admin.routes.env import bp as env_bp
-from admin.routes.pipelines import bp as pipelines_bp
+from routes.crons import bp as crons_bp
+from routes.env import bp as env_bp
+from routes.pipelines import bp as pipelines_bp
 
 app.register_blueprint(crons_bp, url_prefix='/api')
 app.register_blueprint(env_bp, url_prefix='/api')
