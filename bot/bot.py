@@ -95,6 +95,68 @@ if not TELEGRAM_USER_ID:
     log.error("TELEGRAM_USER_ID not set")
     sys.exit(1)
 
+CLAUDE_TIMEOUT = int(os.environ.get("CLAUDE_TIMEOUT", "120"))  # seconds
+
+
+# ---------------------------------------------------------------------------
+# Claude CLI Validation
+# ---------------------------------------------------------------------------
+def check_claude_cli() -> bool:
+    """Check if Claude CLI is installed and authenticated."""
+    # Check if CLI exists
+    try:
+        result = subprocess.run(
+            [CLAUDE_PATH, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            log.error(f"Claude CLI not found or not working: {result.stderr}")
+            return False
+        log.info(f"Claude CLI: {result.stdout.strip()}")
+    except FileNotFoundError:
+        log.error(f"Claude CLI not found at: {CLAUDE_PATH}")
+        return False
+    except Exception as e:
+        log.error(f"Error checking Claude CLI: {e}")
+        return False
+
+    # Check if authenticated (has API key or is logged in)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if api_key:
+        log.info("Using ANTHROPIC_API_KEY for authentication")
+        return True
+
+    # Try a minimal query to check auth
+    try:
+        result = subprocess.run(
+            [CLAUDE_PATH, "-p", "hi", "--output-format", "json", "--max-turns", "1"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=WORKSPACE_ROOT,
+        )
+        if "error" in result.stderr.lower() and "auth" in result.stderr.lower():
+            log.error("Claude CLI not authenticated. Run: claude login")
+            return False
+        if result.returncode != 0 and "unauthorized" in result.stderr.lower():
+            log.error("Claude CLI not authenticated. Run: claude login")
+            return False
+        return True
+    except subprocess.TimeoutExpired:
+        log.warning("Claude auth check timed out — assuming authenticated")
+        return True
+    except Exception as e:
+        log.error(f"Error checking Claude auth: {e}")
+        return False
+
+
+CLAUDE_AUTHENTICATED = check_claude_cli()
+if not CLAUDE_AUTHENTICATED:
+    log.error("Claude CLI is not authenticated. Set ANTHROPIC_API_KEY or run: claude login")
+    sys.exit(1)
+
 # ---------------------------------------------------------------------------
 # Session State
 # ---------------------------------------------------------------------------
@@ -176,10 +238,20 @@ async def create_session() -> Optional[str]:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=CLAUDE_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            log.error(f"Session creation timed out after {CLAUDE_TIMEOUT}s")
+            return None
 
         if proc.returncode != 0:
-            log.error(f"Failed to create session: {stderr.decode()}")
+            error_msg = stderr.decode().strip()
+            log.error(f"Failed to create session: {error_msg}")
             return None
 
         # Parse session ID from output
@@ -226,7 +298,7 @@ async def query_claude(prompt: str, domain: str = "general") -> str:
     session_id = await get_or_create_session()
 
     if not session_id:
-        return "Failed to create Claude session. Check logs."
+        return "Failed to create Claude session. Check server logs or run `claude login` on the server."
 
     # Add domain context prefix
     if domain != "general" and domain in DOMAIN_CONTEXT:
@@ -243,7 +315,16 @@ async def query_claude(prompt: str, domain: str = "general") -> str:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=CLAUDE_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            log.error(f"Claude query timed out after {CLAUDE_TIMEOUT}s")
+            return f"Request timed out after {CLAUDE_TIMEOUT} seconds. Try a simpler query."
 
         # Update query count
         state = load_state()
@@ -251,8 +332,17 @@ async def query_claude(prompt: str, domain: str = "general") -> str:
         save_state(state)
 
         if proc.returncode != 0:
-            log.error(f"Claude query failed: {stderr.decode()}")
-            return f"Error: {stderr.decode()[:500]}"
+            error_msg = stderr.decode().strip()
+            log.error(f"Claude query failed: {error_msg}")
+
+            # Provide user-friendly error messages
+            if "auth" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                return "Claude CLI authentication error. Contact admin to run `claude login` on the server."
+            if "session" in error_msg.lower() and "not found" in error_msg.lower():
+                clear_state()
+                return "Session expired. Please send your message again."
+
+            return f"Error from Claude: {error_msg[:300]}"
 
         # Parse streaming JSON output
         response_parts = []
@@ -270,7 +360,7 @@ async def query_claude(prompt: str, domain: str = "general") -> str:
 
     except Exception as e:
         log.error(f"Exception querying Claude: {e}")
-        return f"Error: {e}"
+        return f"Something went wrong: {e}"
 
 
 # ---------------------------------------------------------------------------
