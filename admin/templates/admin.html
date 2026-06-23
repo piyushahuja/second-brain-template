@@ -1202,9 +1202,10 @@ async function _codexAutoPoll(name) {
 
 async function codexAuthDone(name) {
   const msg = document.getElementById(`dauth-msg-${name}`);
-  msg.style.color = 'var(--muted)'; msg.textContent = 'Checking…';
   const sid = _codexAuthSessions[name];
-  if (!sid) { msg.style.color = 'var(--red)'; msg.textContent = 'No active session'; return; }
+  // Auto-poll may have already handled completion — if so, nothing to do
+  if (!sid) return;
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Checking…';
   try {
     const r = await fetch(`/api/integrations/${name}/auth/poll`, {
       method: 'POST',

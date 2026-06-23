@@ -266,6 +266,10 @@ def codex_auth_start():
             s['proc'].kill()
         except Exception:
             pass
+        try:
+            import os as _os2; _os2.close(s['master_fd'])
+        except Exception:
+            pass
     _codex_auth_sessions.clear()
 
     codex_path = os.environ.get('CODEX_PATH', 'codex')
@@ -317,12 +321,11 @@ def codex_auth_start():
         if proc.poll() is not None:
             break
 
-    try:
-        _os.close(master_fd)
-    except OSError:
-        pass
-
     if not url or not code:
+        try:
+            _os.close(master_fd)
+        except OSError:
+            pass
         proc.kill()
         import logging as _log
         _log.getLogger("second-brain-admin").error(
@@ -332,8 +335,29 @@ def codex_auth_start():
         detail = ansi.sub(b'', raw_buf[:300]).decode('utf-8', errors='replace').strip() or 'Could not read auth URL from codex'
         return jsonify({'status': 'error', 'detail': detail}), 500
 
+    # Drain master_fd in a background thread so the PTY buffer never fills and blocks
+    # codex. We also capture the tail of output for error diagnosis.
+    tail: list[bytes] = []
+
+    def _drain():
+        import select as _sel, os as _o
+        while True:
+            try:
+                r, _, _ = _sel.select([master_fd], [], [], 1.0)
+                if r:
+                    chunk = _o.read(master_fd, 4096)
+                    tail.append(chunk)
+                    if len(tail) > 20:
+                        tail.pop(0)
+            except OSError:
+                break
+            if proc.poll() is not None:
+                break
+
+    threading.Thread(target=_drain, daemon=True).start()
+
     sid = uuid.uuid4().hex[:12]
-    _codex_auth_sessions[sid] = {'proc': proc}
+    _codex_auth_sessions[sid] = {'proc': proc, 'master_fd': master_fd, 'tail': tail}
     return jsonify({'status': 'ok', 'session_id': sid, 'url': url, 'code': code})
 
 
@@ -356,9 +380,18 @@ def codex_auth_poll():
         return jsonify({'status': 'pending'})
 
     _codex_auth_sessions.pop(sid, None)
+    try:
+        import os as _os3; _os3.close(s['master_fd'])
+    except Exception:
+        pass
 
     if ret != 0:
-        return jsonify({'status': 'error', 'detail': f'codex login exited with code {ret}'})
+        import re as _re
+        ansi = _re.compile(rb'\x1b\[[0-9;]*[mGKABCDEFHJK]')
+        raw = b''.join(s.get('tail', []))
+        detail = ansi.sub(b'', raw).decode('utf-8', errors='replace').strip()
+        detail = detail or f'codex login exited with code {ret}'
+        return jsonify({'status': 'error', 'detail': detail[-300:]})
 
     subprocess.run(['systemctl', '--user', 'restart', 'second-brain-bot'],
                    capture_output=True, timeout=10)
