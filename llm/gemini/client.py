@@ -10,8 +10,8 @@ from pathlib import Path
 from llm.base import LLMClient
 
 GEMINI_API_KEY   = os.environ.get("GEMINI_API_KEY", "")
-ASK_MODEL        = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-IMAGE_GEN_MODEL  = "imagen-3.0-generate-002"
+ASK_MODEL        = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+IMAGE_GEN_MODEL  = os.environ.get("GEMINI_IMAGE_MODEL", "imagen-3.0-generate-002")
 
 
 def _get_client():

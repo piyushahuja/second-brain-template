@@ -854,9 +854,8 @@ function renderPatCard(i) {
         ${i.setup_url ? `<p class="hint"><a href="${i.setup_url}" target="_blank">${i.setup_note || 'Get token →'}</a></p>` : ''}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        ${ok
-          ? `<button class="btn btn-ghost" id="pat-edit-${i.name}" onclick="togglePatEdit('${i.name}')">Edit</button>`
-          : `<button class="btn btn-teal" onclick="savePat('${i.name}','${i.env_key}')">Save &amp; Test</button>`}
+        ${ok ? `<button class="btn btn-ghost" id="pat-edit-${i.name}" onclick="togglePatEdit('${i.name}')">Edit</button>` : ''}
+        <button class="btn btn-teal" id="pat-save-${i.name}" onclick="savePat('${i.name}','${i.env_key}')" style="${ok ? 'display:none' : ''}">Save &amp; Test</button>
         <span id="pat-msg-${i.name}" style="font-size:12px"></span>
       </div>
     ` : `<span style="font-size:12px;color:var(--muted)">${i.detail || ''}</span>`}
@@ -978,8 +977,10 @@ async function saveSetupToken(name, envKey) {
 function togglePatEdit(name) {
   const form = document.getElementById(`pat-form-${name}`);
   const btn  = document.getElementById(`pat-edit-${name}`);
+  const save = document.getElementById(`pat-save-${name}`);
   const open = form.style.display === 'none';
   form.style.display = open ? 'block' : 'none';
+  if (save) save.style.display = open ? '' : 'none';
   btn.textContent = open ? 'Cancel' : 'Edit';
 }
 
