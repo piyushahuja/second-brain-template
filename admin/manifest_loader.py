@@ -3,25 +3,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 INTEGRATIONS_DIR = ROOT / 'integrations'
-CATALOG_DIR = ROOT / 'catalog'
+LLM_DIR          = ROOT / 'llm'
+CATALOG_DIR      = ROOT / 'catalog'
 
 REQUIRED_KEYS = {'name', 'label', 'description', 'auth'}
 
 
 def load_manifests() -> list[dict]:
     manifests = []
-    for path in sorted(INTEGRATIONS_DIR.glob('*/manifest.json')):
-        try:
-            data = json.loads(path.read_text())
-            missing = REQUIRED_KEYS - data.keys()
-            if missing:
+    sources = [
+        (INTEGRATIONS_DIR, 'integration'),
+        (LLM_DIR,          'llm'),
+    ]
+    for directory, category in sources:
+        for path in sorted(directory.glob('*/manifest.json')):
+            try:
+                data = json.loads(path.read_text())
+                if REQUIRED_KEYS - data.keys():
+                    continue
+                if 'health' not in data:
+                    data['health'] = {}
+                data.setdefault('category', category)
+                manifests.append(data)
+            except (json.JSONDecodeError, OSError):
                 continue
-            # Ensure health key exists
-            if 'health' not in data:
-                data['health'] = {}
-            manifests.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
     return manifests
 
 

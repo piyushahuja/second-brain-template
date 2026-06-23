@@ -53,6 +53,9 @@ def check_integration(manifest: dict) -> dict:
         return _check_api(health)
     elif check_type == 'command':
         return _check_command(health)
+    elif check_type == 'env_key':
+        # Key already checked above for api_key auth type; if we reach here it's set
+        return {'status': 'ok', 'detail': 'API key configured'}
 
     return {'status': 'unknown', 'detail': 'No health check defined'}
 

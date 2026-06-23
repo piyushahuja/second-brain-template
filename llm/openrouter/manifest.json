@@ -1,0 +1,14 @@
+{
+  "name": "openrouter",
+  "label": "OpenRouter",
+  "description": "OpenRouter — access DeepSeek, GLM, and other models via a single API key",
+  "auth": {
+    "type": "api_key",
+    "env_key": "OPENROUTER_API_KEY",
+    "setup_url": "https://openrouter.ai/keys",
+    "setup_guide": "Create an API key at openrouter.ai"
+  },
+  "health": {
+    "type": "env_key"
+  }
+}

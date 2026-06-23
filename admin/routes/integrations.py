@@ -22,6 +22,7 @@ def _integration_dict(m, health):
         'label': m['label'],
         'description': m['description'],
         'icon': m.get('icon', ''),
+        'category': m.get('category', 'integration'),
         'auth_type': auth.get('type'),
         'env_key': auth.get('env_key', ''),
         'setup_url': auth.get('setup_url'),

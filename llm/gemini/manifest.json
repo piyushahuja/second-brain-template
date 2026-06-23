@@ -1,0 +1,14 @@
+{
+  "name": "gemini",
+  "label": "Gemini",
+  "description": "Google Gemini — multimodal input (images, PDFs, audio) and image generation via Imagen 3",
+  "auth": {
+    "type": "api_key",
+    "env_key": "GEMINI_API_KEY",
+    "setup_url": "https://aistudio.google.com/app/apikey",
+    "setup_guide": "Create a free API key at Google AI Studio"
+  },
+  "health": {
+    "type": "env_key"
+  }
+}

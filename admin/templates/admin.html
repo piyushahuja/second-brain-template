@@ -255,8 +255,14 @@
       <span id="prov-msg" style="font-size:12px;color:var(--muted)"></span>
     </div>
 
-    <!-- Claude Code card (rendered from integrations data) -->
+    <!-- Claude Code / Codex cards (rendered from integrations data) -->
     <div id="infra-cards"></div>
+
+    <!-- LLM Services -->
+    <div id="llm-section" style="display:none">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:20px 0 10px">LLM Services</div>
+      <div id="llm-cards"></div>
+    </div>
   </div>
 
   <!-- Cron -->
@@ -553,12 +559,24 @@ const INFRA_NAMES = ['anthropic']; // api_key but powers the agent, not a data s
 
 function renderIntegrations(integrations) {
   const google  = integrations.find(i => i.name === 'google');
-  const infra   = integrations.filter(i => i.name !== 'google' && (INFRA_TYPES.includes(i.auth_type) || INFRA_NAMES.includes(i.name)));
-  const sources = integrations.filter(i => i.name !== 'google' && !INFRA_TYPES.includes(i.auth_type) && !INFRA_NAMES.includes(i.name));
+  const llm     = integrations.filter(i => i.category === 'llm');
+  const rest    = integrations.filter(i => i.name !== 'google' && i.category !== 'llm');
+  const infra   = rest.filter(i => INFRA_TYPES.includes(i.auth_type) || INFRA_NAMES.includes(i.name));
+  const sources = rest.filter(i => !INFRA_TYPES.includes(i.auth_type) && !INFRA_NAMES.includes(i.name));
 
   if (google) renderGoogleCard(google);
   renderPatCards(sources);
   renderInfraCards(infra);
+  renderLlmCards(llm);
+}
+
+function renderLlmCards(items) {
+  const section = document.getElementById('llm-section');
+  const el = document.getElementById('llm-cards');
+  if (!el || !section) return;
+  if (!items.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  el.innerHTML = items.map(i => renderPatCard(i)).join('');
 }
 
 function renderInfraCards(items) {
