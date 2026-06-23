@@ -9,7 +9,9 @@ set -e
 #   --with-voice      Install voice transcription (Whisper + ffmpeg)
 #   --with-syncthing  Install and configure Syncthing
 #   --with-google     Set up Google OAuth (Gmail, Calendar, Drive)
-#   --with-codex      Install Codex CLI (OpenAI agent, fallback provider)
+#   --with-codex      Install Codex CLI (OpenAI agent, fallback orchestrator)
+#   --with-gemini     Install Gemini LLM client (google-genai)
+#   --with-openrouter Install OpenRouter LLM client (openai package)
 #   --all             Install all optional components
 #   --help            Show this help message
 
@@ -25,6 +27,8 @@ WITH_VOICE=false
 WITH_SYNCTHING=false
 WITH_GOOGLE=false
 WITH_CODEX=false
+WITH_GEMINI=false
+WITH_OPENROUTER=false
 
 for arg in "$@"; do
     case $arg in
@@ -33,11 +37,15 @@ for arg in "$@"; do
         --with-syncthing) WITH_SYNCTHING=true ;;
         --with-google) WITH_GOOGLE=true ;;
         --with-codex) WITH_CODEX=true ;;
+        --with-gemini) WITH_GEMINI=true ;;
+        --with-openrouter) WITH_OPENROUTER=true ;;
         --all)
             WITH_ADMIN=true
             WITH_VOICE=true
             WITH_SYNCTHING=true
             WITH_CODEX=true
+            WITH_GEMINI=true
+            WITH_OPENROUTER=true
             ;;
         --help)
             head -20 "$0" | tail -15
@@ -224,6 +232,26 @@ if [ "$WITH_CODEX" = true ]; then
     else
         echo "Codex: not found after installation — check npm output above"
     fi
+fi
+
+# --- Optional: Gemini LLM client ---
+
+if [ "$WITH_GEMINI" = true ]; then
+    echo ""
+    echo "Installing Gemini client..."
+    uv pip install --quiet --python "$PYTHON" google-genai
+    echo "Gemini client installed."
+    echo "Next: add GEMINI_API_KEY to .env (get key at https://aistudio.google.com/app/apikey)"
+fi
+
+# --- Optional: OpenRouter LLM client ---
+
+if [ "$WITH_OPENROUTER" = true ]; then
+    echo ""
+    echo "Installing OpenRouter client..."
+    uv pip install --quiet --python "$PYTHON" openai
+    echo "OpenRouter client installed."
+    echo "Next: add OPENROUTER_API_KEY to .env (get key at https://openrouter.ai/keys)"
 fi
 
 # --- Optional: Syncthing ---
