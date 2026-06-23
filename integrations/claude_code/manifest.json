@@ -2,12 +2,11 @@
   "name": "claude_code",
   "label": "Claude Code",
   "description": "Claude AI — powers the agent",
-  "icon": "🤖",
   "auth": {
-    "type": "claude_oauth",
+    "type": "setup_token",
     "env_key": "ANTHROPIC_AUTH_TOKEN",
-    "token_env_keys": ["ANTHROPIC_AUTH_TOKEN"],
-    "setup_note": "Click 'Login with Claude' to authenticate via browser OAuth flow."
+    "setup_note": "Run `claude setup-token` on your local machine (where you're logged in to Claude). Paste the sk-ant-oat01-... token here. Uses your Claude Pro/Max subscription instead of API credits.",
+    "fallback_note": "No token set — currently using developer account."
   },
   "restart_service": "second-brain-bot",
   "pipelines": [],
