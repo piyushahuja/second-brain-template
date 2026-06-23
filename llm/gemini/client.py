@@ -27,7 +27,7 @@ def _get_client():
 class GeminiClient(LLMClient):
     async def ask(self, prompt: str, files: list[Path] | None = None) -> str:
         import asyncio
-        return await asyncio.get_event_loop().run_in_executor(None, self._ask_sync, prompt, files)
+        return await asyncio.get_running_loop().run_in_executor(None, self._ask_sync, prompt, files)
 
     def _ask_sync(self, prompt: str, files: list[Path] | None) -> str:
         from google.genai import types
@@ -47,7 +47,7 @@ class GeminiClient(LLMClient):
 
     async def generate_image(self, prompt: str) -> bytes:
         import asyncio
-        return await asyncio.get_event_loop().run_in_executor(None, self._generate_image_sync, prompt)
+        return await asyncio.get_running_loop().run_in_executor(None, self._generate_image_sync, prompt)
 
     def _generate_image_sync(self, prompt: str) -> bytes:
         client = _get_client()

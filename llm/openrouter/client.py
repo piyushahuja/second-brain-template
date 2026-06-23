@@ -24,7 +24,7 @@ class OpenRouterClient(LLMClient):
         import asyncio
         if files:
             raise NotImplementedError("OpenRouter client does not support file inputs")
-        return await asyncio.get_event_loop().run_in_executor(None, self._ask_sync, prompt)
+        return await asyncio.get_running_loop().run_in_executor(None, self._ask_sync, prompt)
 
     def _ask_sync(self, prompt: str) -> str:
         if not OPENROUTER_API_KEY:

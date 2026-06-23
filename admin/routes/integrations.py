@@ -1,8 +1,11 @@
+import logging
 import os
 import subprocess
 import threading
 import queue
 import uuid
+
+log = logging.getLogger("second-brain-admin")
 from flask import Blueprint, jsonify, request
 from admin.auth import require_admin
 from admin.health import check_integration
@@ -328,11 +331,8 @@ def codex_auth_start():
         except OSError:
             pass
         proc.kill()
-        import logging as _log
-        _log.getLogger("second-brain-admin").error(
-            "codex auth failed — url=%r code=%r buf=%r pid=%s rc=%s",
-            url, code, raw_buf[:500], proc.pid, proc.poll()
-        )
+        log.error("codex auth failed — url=%r code=%r buf=%r pid=%s rc=%s",
+                  url, code, raw_buf[:500], proc.pid, proc.poll())
         detail = ansi.sub(b'', raw_buf[:300]).decode('utf-8', errors='replace').strip() or 'Could not read auth URL from codex'
         return jsonify({'status': 'error', 'detail': detail}), 500
 

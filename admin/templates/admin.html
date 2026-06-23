@@ -556,11 +556,12 @@ function renderResources(r) {
 // ── Integrations ──────────────────────────────────
 const INFRA_TYPES = ['cli', 'setup_token', 'device_auth'];
 const INFRA_NAMES = ['anthropic']; // api_key but powers the agent, not a data source
+const LLM_NAMES  = ['gemini', 'openrouter'];
 
 function renderIntegrations(integrations) {
   const google  = integrations.find(i => i.name === 'google');
-  const llm     = integrations.filter(i => i.category === 'llm');
-  const rest    = integrations.filter(i => i.name !== 'google' && i.category !== 'llm');
+  const llm     = integrations.filter(i => i.category === 'llm' || LLM_NAMES.includes(i.name));
+  const rest    = integrations.filter(i => i.name !== 'google' && i.category !== 'llm' && !LLM_NAMES.includes(i.name));
   const infra   = rest.filter(i => INFRA_TYPES.includes(i.auth_type) || INFRA_NAMES.includes(i.name));
   const sources = rest.filter(i => !INFRA_TYPES.includes(i.auth_type) && !INFRA_NAMES.includes(i.name));
 

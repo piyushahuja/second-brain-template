@@ -46,7 +46,16 @@ app.require_admin = require_admin
 @app.route('/admin')
 def admin_panel():
     """Serve the admin UI."""
-    return send_from_directory(Path(__file__).parent / 'templates', 'admin.html')
+    resp = send_from_directory(Path(__file__).parent / 'templates', 'admin.html')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+@app.after_request
+def no_cache_api(resp):
+    if request.path.startswith('/api/'):
+        resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 @app.route('/dashboards/<path:filename>')
