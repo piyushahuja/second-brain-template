@@ -231,6 +231,7 @@ def claude_auth_submit():
         settings.setdefault('theme', 'dark')
         settings['hasCompletedOnboarding'] = True
         settings['skipDangerousModePermissionPrompt'] = True
+        settings['tui'] = 'fullscreen'
         settings_path.write_text(_json.dumps(settings, indent=2))
 
         # Create settings.local.json if missing (indicates setup is complete)
