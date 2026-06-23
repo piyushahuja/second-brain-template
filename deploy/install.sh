@@ -163,6 +163,9 @@ if [ -n "$CLAUDE_FULL_PATH" ]; then
     fi
     echo "CLAUDE_PATH saved to .env"
 
+    # Ensure claude is executable
+    chmod +x "$CLAUDE_FULL_PATH"
+
     # Symlink to /usr/local/bin so 'claude' is in PATH for all services
     if [ ! -L /usr/local/bin/claude ] || [ "$(readlink /usr/local/bin/claude)" != "$CLAUDE_FULL_PATH" ]; then
         echo "Creating symlink: /usr/local/bin/claude -> $CLAUDE_FULL_PATH"
