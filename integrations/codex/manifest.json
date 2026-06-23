@@ -1,7 +1,7 @@
 {
   "name": "codex",
   "label": "Codex CLI",
-  "description": "OpenAI Codex agent — fallback provider, uses your ChatGPT subscription",
+  "description": "OpenAI Codex agent — fallback orchestrator, uses your ChatGPT subscription",
   "auth": {
     "type": "device_auth",
     "setup_note": "Sign in with your ChatGPT Plus/Pro account"
@@ -9,7 +9,7 @@
   "restart_service": "second-brain-bot",
   "health": {
     "type": "command",
-    "command": ["codex", "login", "status"],
+    "command": ["$CODEX_PATH", "login", "status"],
     "expect_exit_code": 0
   }
 }

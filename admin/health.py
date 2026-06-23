@@ -147,10 +147,19 @@ def _check_api(health: dict) -> dict:
 
 
 def _check_command(health: dict) -> dict:
-    cmd = health.get('command', [])
+    cmd = [_resolve(part) for part in health.get('command', [])]
     expect_exit = health.get('expect_exit_code', 0)
+
+    # If the executable is a symlink (e.g. nvm-managed codex), ensure its
+    # containing directory is in PATH so shebang scripts can find `node`.
+    env = os.environ.copy()
+    if cmd:
+        exe_dir = os.path.dirname(cmd[0])
+        if exe_dir:
+            env['PATH'] = exe_dir + ':' + env.get('PATH', '')
+
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, timeout=10, env=env)
         if result.returncode == expect_exit:
             out = result.stdout.decode().strip().splitlines()
             return {'status': 'ok', 'detail': out[0] if out else 'ok'}
