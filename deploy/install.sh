@@ -162,6 +162,12 @@ if [ -n "$CLAUDE_FULL_PATH" ]; then
         echo "CLAUDE_PATH=$CLAUDE_FULL_PATH" >> "$SCRIPT_DIR/.env"
     fi
     echo "CLAUDE_PATH saved to .env"
+
+    # Symlink to /usr/local/bin so 'claude' is in PATH for all services
+    if [ ! -L /usr/local/bin/claude ] || [ "$(readlink /usr/local/bin/claude)" != "$CLAUDE_FULL_PATH" ]; then
+        echo "Creating symlink: /usr/local/bin/claude -> $CLAUDE_FULL_PATH"
+        sudo ln -sf "$CLAUDE_FULL_PATH" /usr/local/bin/claude
+    fi
 else
     echo "Claude: not found"
 fi
