@@ -1,156 +1,1089 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Second Brain Admin</title>
-    <style>
-        :root {
-            --bg: #1a1a2e;
-            --card: #16213e;
-            --text: #eee;
-            --muted: #888;
-            --accent: #0f3460;
-            --success: #4ade80;
-            --danger: #f87171;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            line-height: 1.5;
-        }
-        h1 { margin-bottom: 1.5rem; font-weight: 500; }
-        .card {
-            background: var(--card);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        .card h2 {
-            font-size: 0.875rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-        }
-        .status-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--accent);
-        }
-        .status-row:last-child { border-bottom: none; }
-        .badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        .badge.success { background: var(--success); color: #000; }
-        .badge.danger { background: var(--danger); color: #000; }
-        .progress-bar {
-            height: 8px;
-            background: var(--accent);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-        .progress-bar .fill {
-            height: 100%;
-            background: var(--success);
-            transition: width 0.3s;
-        }
-        .progress-bar .fill.warn { background: #fbbf24; }
-        .progress-bar .fill.danger { background: var(--danger); }
-        #error {
-            color: var(--danger);
-            padding: 1rem;
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Second Brain</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0b0f16;
+      --sidebar: #0d1218;
+      --card:    #111827;
+      --border:  #1e2a3a;
+      --teal:    #00d4b8;
+      --teal-bg: rgba(0,212,184,.12);
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --red:     #ef4444;
+      --yellow:  #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,sans-serif; display:flex; min-height:100vh; font-size:14px; }
+    a { color:inherit; text-decoration:none; }
+
+    /* Sidebar */
+    .sidebar { width:192px; background:var(--sidebar); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; }
+    .sb-logo { padding:16px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700; }
+    .sb-logo .t { color:var(--teal); }
+    .sb-sect { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); padding:16px 16px 6px; }
+    .sb-item { display:flex; align-items:center; gap:9px; padding:7px 14px; font-size:13px; color:var(--muted); cursor:pointer; border-left:2px solid transparent; transition:all .15s; }
+    .sb-item:hover { color:var(--text); background:rgba(255,255,255,.025); }
+    .sb-item.active { color:var(--teal); border-left-color:var(--teal); background:var(--teal-bg); }
+    .sb-item svg { opacity:.7; flex-shrink:0; }
+    .sb-item.active svg { opacity:1; }
+    .sb-foot { margin-top:auto; padding:12px 16px; border-top:1px solid var(--border); font-size:10px; color:var(--muted); font-family:monospace; line-height:1.7; }
+
+    /* Main */
+    main { flex:1; overflow:auto; padding:32px; }
+    .page { display:none; max-width:660px; }
+    .page.active { display:block; }
+    .page-title { font-size:17px; font-weight:600; margin-bottom:22px; }
+
+    /* Cards */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:12px; }
+    .card-hd { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+
+    /* Badges */
+    .badge { font-size:11px; font-weight:500; padding:2px 8px; border-radius:4px; font-family:monospace; }
+    .badge-ok       { background:var(--teal-bg); color:var(--teal); }
+    .badge-awaiting { background:rgba(251,191,36,.12); color:var(--yellow); }
+    .badge-error    { background:rgba(239,68,68,.12); color:var(--red); }
+    .badge-none     { background:rgba(100,116,139,.12); color:var(--muted); }
+
+    /* Buttons */
+    .btn { display:inline-flex; align-items:center; gap:5px; padding:6px 13px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:none; transition:all .15s; }
+    .btn-teal  { background:var(--teal); color:#000; font-weight:600; }
+    .btn-teal:hover { opacity:.85; }
+    .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:#2d3f55; }
+    .btn-danger { background:transparent; color:var(--red); border:none; font-size:12px; cursor:pointer; padding:4px 2px; }
+    .btn-danger:hover { text-decoration:underline; }
+
+    /* Fields */
+    .field { margin-bottom:12px; }
+    .field label { display:block; font-size:11px; color:var(--muted); margin-bottom:5px; }
+    .field input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 11px; font-size:13px; color:var(--text); outline:none; font-family:monospace; transition:border-color .15s; }
+    .field input:focus { border-color:var(--teal); }
+    .field input::placeholder { color:#2a3a4a; }
+    .hint { font-size:11px; color:var(--muted); line-height:1.7; margin-bottom:12px; }
+    .hint a { color:var(--teal); }
+    .hint code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:10px; border:1px solid var(--border); }
+
+    /* Token row */
+    .token-row { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 11px; font-family:monospace; font-size:13px; margin-bottom:10px; }
+    .token-row .val { flex:1; color:var(--muted); }
+
+    /* Pipeline permission rows */
+    .perm-section-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:8px; }
+    .perm-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+    .perm-row:last-child { border-bottom:none; }
+    .perm-name { display:flex; align-items:center; gap:9px; font-size:13px; }
+    .perm-icon { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+    .perm-toggle { display:flex; align-items:center; gap:6px; }
+    /* access label (Read/Write) */
+    .access-label { font-size:11px; color:var(--muted); margin-right:4px; }
+    /* the toggle button */
+    .perm-btn { font-size:11px; font-weight:500; padding:3px 12px; border-radius:4px; cursor:pointer; transition:all .15s; border:1px solid var(--border); background:transparent; color:var(--muted); }
+    .perm-btn.active   { background:var(--teal-bg); color:var(--teal); border-color:rgba(0,212,184,.35); }
+    .perm-btn.retracting { background:rgba(239,68,68,.1); color:var(--red); border-color:rgba(239,68,68,.3); }
+
+    /* Divider */
+    .divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+    /* Resource bars */
+    .res-row { margin-bottom:14px; }
+    .res-row:last-child { margin-bottom:0; }
+    .res-hd  { display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px; }
+    .res-hd .lbl { color:var(--muted); }
+    .res-hd .val { font-family:monospace; }
+    .bar-bg   { background:#1e2a3a; border-radius:99px; height:4px; }
+    .bar-fill { height:4px; border-radius:99px; background:var(--teal); transition:width .5s; }
+    .bar-fill.warn   { background:var(--yellow); }
+    .bar-fill.danger { background:var(--red); }
+
+    /* Service rows */
+    .svc-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+    .svc-row:last-child { border-bottom:none; }
+    .svc-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .svc-dot.active   { background:var(--teal); box-shadow:0 0 5px var(--teal); }
+    .svc-dot.inactive { background:var(--red); }
+    .svc-dot.unknown  { background:var(--muted); }
+    .svc-name   { flex:1; font-size:13px; }
+    .svc-status { font-size:11px; color:var(--muted); font-family:monospace; }
+
+    /* Syncthing card */
+    .st-device { display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 11px; margin-bottom:14px; }
+    .st-device .id { font-family:monospace; font-size:11px; color:var(--muted); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .st-copy { background:transparent; border:1px solid var(--border); border-radius:4px; color:var(--muted); font-size:11px; padding:2px 8px; cursor:pointer; flex-shrink:0; }
+    .st-copy:hover { color:var(--text); border-color:#2d3f55; }
+    .st-folder { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .st-folder:last-child { border-bottom:none; }
+    .st-folder .name { flex:1; }
+    .st-folder .path { color:var(--muted); font-family:monospace; font-size:11px; flex:2; }
+    .st-folder .age  { color:var(--muted); font-size:11px; flex-shrink:0; }
+    .st-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .st-dot.synced  { background:var(--teal); box-shadow:0 0 4px var(--teal); }
+    .st-dot.syncing { background:var(--yellow); }
+    .st-dot.behind  { background:var(--red); }
+    .st-dot.unknown { background:var(--muted); }
+
+    /* Auth overlay */
+    #auth-overlay { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:99; }
+    .auth-box  { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:32px; width:300px; }
+    .auth-logo { font-size:16px; font-weight:700; margin-bottom:4px; }
+    .auth-logo .t { color:var(--teal); }
+    .auth-sub  { font-size:12px; color:var(--muted); margin-bottom:20px; }
+
+    /* Envar rows */
+    .envar-row { display:flex; align-items:center; gap:12px; padding:7px 0; border-bottom:1px solid var(--border); }
+    .envar-row:last-child { border-bottom:none; }
+    .envar-key { font-family:monospace; font-size:12px; color:var(--muted); flex:0 0 200px; }
+    .envar-val { font-family:monospace; font-size:12px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    /* Notice */
+    .notice { font-size:11px; color:var(--yellow); background:rgba(251,191,36,.08); border:1px solid rgba(251,191,36,.2); border-radius:6px; padding:7px 10px; margin:10px 0; display:none; }
+  </style>
 </head>
 <body>
-    <h1>Second Brain</h1>
-    <div id="error"></div>
 
+<!-- Auth overlay -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo"><span class="t">second</span>brain</div>
+    <div class="auth-sub">Admin access required</div>
+    <div class="field">
+      <input id="token-input" type="password" placeholder="Admin token"
+        onkeydown="if(event.key==='Enter')submitToken()">
+    </div>
+    <button class="btn btn-teal" style="width:100%" onclick="submitToken()">Unlock</button>
+    <p id="auth-err" style="font-size:12px;color:var(--red);margin-top:10px;display:none">Invalid token</p>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-logo"><span class="t">second</span>brain</div>
+
+  <div class="sb-sect">Menu</div>
+  <div class="sb-item active" id="nav-general" onclick="nav('general')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    General
+  </div>
+
+  <div class="sb-sect">Monitoring</div>
+  <div class="sb-item" id="nav-cron" onclick="nav('cron')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    Cron
+  </div>
+
+  <div class="sb-sect">Config</div>
+  <div class="sb-item" id="nav-sources" onclick="nav('sources')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+    Data Sources
+  </div>
+  <div class="sb-item" id="nav-catalog" onclick="nav('catalog')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2l9 4.5V12a9 9 0 01-9 9 9 9 0 01-9-9V6.5L12 2z"/></svg>
+    Catalog
+  </div>
+  <div class="sb-item" id="nav-infra" onclick="nav('infra')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="5" rx="1"/><rect x="2" y="10" width="20" height="5" rx="1"/><rect x="2" y="17" width="20" height="5" rx="1"/><line x1="6" y1="5.5" x2="6" y2="5.5"/><line x1="6" y1="12.5" x2="6" y2="12.5"/><line x1="6" y1="19.5" x2="6" y2="19.5"/></svg>
+    Infra
+  </div>
+  <div class="sb-item" id="nav-envars" onclick="nav('envars')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 9l3 3-3 3m5 0h3"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    Envars
+  </div>
+
+  <div class="sb-foot">
+    <div id="refresh-ts">—</div>
+    <div>Second Brain</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main>
+
+  <!-- General -->
+  <div class="page active" id="page-general">
+    <div class="page-title">General</div>
     <div class="card">
-        <h2>Services</h2>
-        <div class="status-row">
-            <span>Telegram Bot</span>
-            <span id="bot-status" class="badge">...</span>
-        </div>
+      <div class="card-hd">Services</div>
+      <div id="services-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd">Resources</div>
+      <div id="resources-list"></div>
+    </div>
+  </div>
+
+  <!-- Infra -->
+  <div class="page" id="page-infra">
+    <div class="page-title">Infrastructure</div>
+
+    <!-- Syncthing card -->
+    <div class="card" id="syncthing-card">
+      <div class="card-hd">
+        Syncthing
+        <span id="st-badge" class="badge badge-none">—</span>
+      </div>
+      <div id="syncthing-body"></div>
     </div>
 
-    <div class="card">
-        <h2>Resources</h2>
-        <div class="status-row">
-            <span>Disk</span>
-            <span id="disk-text">...</span>
+    <!-- Claude Code card (rendered from integrations data) -->
+    <div id="infra-cards"></div>
+  </div>
+
+  <!-- Cron -->
+  <div class="page" id="page-cron">
+    <div class="page-title">Cron</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px" id="cron-subtitle"></p>
+    <div id="cron-list"></div>
+  </div>
+
+  <!-- Data Sources -->
+  <div class="page" id="page-sources">
+    <div class="page-title">Data Sources</div>
+
+    <!-- Google card -->
+    <div class="card" id="google-card">
+      <div class="card-hd">
+        Google Accounts
+        <span id="google-badge" class="badge badge-none">Not configured</span>
+      </div>
+
+      <!-- state: no credentials -->
+      <div id="gs-nocreds">
+        <p class="hint" style="margin-bottom:14px">No OAuth credentials configured.</p>
+        <button class="btn btn-ghost" onclick="showCredForm(true)">Edit Credentials</button>
+      </div>
+
+      <!-- state: has credentials (awaiting or connected) -->
+      <div id="gs-configured" style="display:none">
+
+        <!-- email row (connected only) -->
+        <div id="gs-email-row" style="display:none;margin-bottom:14px">
+          <span id="google-email" style="font-family:monospace;font-size:13px"></span>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">Personal</span>
         </div>
-        <div class="progress-bar">
-            <div id="disk-bar" class="fill" style="width: 0%"></div>
+
+        <!-- pipeline permission rows -->
+        <div class="perm-section-label">Select permissions</div>
+        <div id="google-pipelines" style="margin-bottom:16px"></div>
+
+        <!-- retraction notice -->
+        <div class="notice" id="retract-notice">
+          Removing permissions requires re-authentication with Google.
         </div>
-        <div class="status-row" style="margin-top: 1rem;">
-            <span>Memory</span>
-            <span id="mem-text">...</span>
+
+        <!-- actions -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <a id="google-signin-btn" href="/oauth/google" class="btn btn-teal">Sign in with Google</a>
+          <button class="btn btn-ghost" onclick="showCredForm(true)">Edit Credentials</button>
+          <button id="gs-disconnect" class="btn-danger" onclick="disconnectGoogle()" style="display:none">Disconnect</button>
         </div>
-        <div class="progress-bar">
-            <div id="mem-bar" class="fill" style="width: 0%"></div>
+      </div>
+
+      <!-- inline credentials form -->
+      <div id="google-creds-form" style="display:none">
+        <hr class="divider">
+        <div class="field">
+          <label>Client ID</label>
+          <input id="g-client-id" type="text" placeholder="1234567890-abc...apps.googleusercontent.com">
         </div>
+        <div class="field">
+          <label>Client Secret</label>
+          <input id="g-client-secret" type="password" placeholder="GOCSPX-...">
+        </div>
+        <p class="hint">
+          <a href="https://console.cloud.google.com/apis/credentials" target="_blank">console.cloud.google.com</a>
+          → Credentials → OAuth client ID → Web application<br>
+          Redirect URI: <code id="g-redirect-uri"></code>
+        </p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-teal" onclick="saveGoogleCreds()">Save</button>
+          <button class="btn btn-ghost" onclick="showCredForm(false)">Cancel</button>
+          <span id="g-creds-msg" style="font-size:12px"></span>
+        </div>
+      </div>
     </div>
 
-    <script>
-        async function fetchStatus() {
-            try {
-                const token = localStorage.getItem('admin_token') || '';
-                const res = await fetch('/api/status', {
-                    headers: { 'X-Admin-Token': token }
-                });
-                if (!res.ok) {
-                    if (res.status === 401) {
-                        const newToken = prompt('Enter admin token:');
-                        if (newToken) {
-                            localStorage.setItem('admin_token', newToken);
-                            return fetchStatus();
-                        }
-                    }
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                const data = await res.json();
+    <!-- PAT / API key cards -->
+    <div id="pat-cards"></div>
+  </div>
 
-                // Bot status
-                const botEl = document.getElementById('bot-status');
-                botEl.textContent = data.bot_running ? 'Running' : 'Stopped';
-                botEl.className = 'badge ' + (data.bot_running ? 'success' : 'danger');
+  <!-- Catalog -->
+  <div class="page" id="page-catalog">
+    <div class="page-title">Catalog</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:20px">Available integrations — install to activate.</p>
+    <div id="catalog-list"><span style="color:var(--muted);font-size:13px">Loading…</span></div>
+  </div>
 
-                // Disk
-                document.getElementById('disk-text').textContent =
-                    `${data.disk.used_gb} / ${data.disk.total_gb} GB (${data.disk.percent}%)`;
-                const diskBar = document.getElementById('disk-bar');
-                diskBar.style.width = data.disk.percent + '%';
-                diskBar.className = 'fill' + (data.disk.percent > 90 ? ' danger' : data.disk.percent > 70 ? ' warn' : '');
+  <!-- Envars -->
+  <div class="page" id="page-envars">
+    <div class="page-title">Envars</div>
+    <div class="card">
+      <div id="envars-list"><span style="color:var(--muted);font-size:13px">Loading…</span></div>
+    </div>
+  </div>
 
-                // Memory
-                if (data.memory_percent !== null) {
-                    document.getElementById('mem-text').textContent = data.memory_percent + '%';
-                    const memBar = document.getElementById('mem-bar');
-                    memBar.style.width = data.memory_percent + '%';
-                    memBar.className = 'fill' + (data.memory_percent > 90 ? ' danger' : data.memory_percent > 70 ? ' warn' : '');
-                } else {
-                    document.getElementById('mem-text').textContent = 'N/A';
-                }
+</main>
 
-            } catch (err) {
-                document.getElementById('error').textContent = 'Error: ' + err.message;
-                document.getElementById('error').style.display = 'block';
-            }
-        }
+<script>
+let tok = sessionStorage.getItem('adminToken');
 
-        fetchStatus();
-        setInterval(fetchStatus, 30000);
-    </script>
+// pipeline selection state: Set of selected pipeline IDs
+let gSelected  = new Set();
+let gGranted   = new Set();
+let gPipelines = [];  // full manifest pipeline objects
+
+// ── Auth ──────────────────────────────────────────
+function checkAuth() {
+  document.getElementById('auth-overlay').style.display = tok ? 'none' : 'flex';
+  if (tok) refresh();
+}
+
+async function submitToken() {
+  const t = document.getElementById('token-input').value.trim();
+  const r = await fetch('/api/status', { headers: { 'X-Admin-Token': t } });
+  if (r.ok) {
+    tok = t; sessionStorage.setItem('adminToken', t);
+    document.getElementById('auth-overlay').style.display = 'none';
+    refresh();
+  } else {
+    document.getElementById('auth-err').style.display = 'block';
+  }
+}
+
+// ── Nav ───────────────────────────────────────────
+const PAGES = ['general', 'cron', 'sources', 'catalog', 'infra', 'envars'];
+function nav(name) {
+  PAGES.forEach(p => {
+    document.getElementById('page-' + p).classList.toggle('active', p === name);
+    document.getElementById('nav-' + p)?.classList.toggle('active', p === name);
+  });
+  if (name === 'envars')  loadEnvars();
+  if (name === 'cron')    loadCron();
+  if (name === 'catalog') loadCatalog();
+}
+
+// handle #hash on load (e.g. after OAuth callback redirect)
+function handleHash() {
+  const hash = location.hash.replace('#', '');
+  // support legacy #integrations hash from OAuth callback redirect
+  const resolved = hash === 'integrations' ? 'sources' : hash;
+  if (PAGES.includes(resolved)) nav(resolved);
+}
+
+// ── Refresh ───────────────────────────────────────
+async function refresh() {
+  try {
+    const r = await fetch('/api/status', { headers: { 'X-Admin-Token': tok } });
+    if (r.status === 401) { tok = null; sessionStorage.removeItem('adminToken'); checkAuth(); return; }
+    const d = await r.json();
+    renderServices(d.services);
+    renderResources(d.resources);
+    renderIntegrations(d.integrations);
+    renderSyncthing(d.syncthing);
+    document.getElementById('refresh-ts').textContent = new Date().toLocaleTimeString();
+  } catch(e) {}
+}
+setInterval(refresh, 30000);
+
+// ── Services ──────────────────────────────────────
+function renderServices(svcs) {
+  const labels = { 'second-brain-bot': 'Bot', 'second-brain-admin': 'Admin' };
+  document.getElementById('services-list').innerHTML = Object.entries(svcs).map(([n, s]) =>
+    `<div class="svc-row">
+      <span class="svc-dot ${s === 'active' ? 'active' : s === 'inactive' ? 'inactive' : 'unknown'}"></span>
+      <span class="svc-name">${labels[n] || n}</span>
+      <span class="svc-status">${s}</span>
+    </div>`).join('');
+}
+
+// ── Syncthing ─────────────────────────────────────
+function renderSyncthing(st) {
+  const badge = document.getElementById('st-badge');
+  const body  = document.getElementById('syncthing-body');
+  if (!st || !st.available) {
+    badge.className = 'badge badge-error'; badge.textContent = 'unavailable';
+    body.innerHTML = `<p style="font-size:12px;color:var(--muted)">${st?.error || 'Cannot reach Syncthing'}</p>`;
+    return;
+  }
+  badge.className = 'badge badge-ok'; badge.textContent = 'active';
+  const folders = (st.folders || []).map(f => {
+    const dotCls = {synced:'synced', syncing:'syncing', scanning:'syncing', behind:'behind'}[f.status] || 'unknown';
+    return `<div class="st-folder">
+      <span class="st-dot ${dotCls}"></span>
+      <span class="name">${f.label || f.path}</span>
+      <span class="path">${f.path}</span>
+      <span class="age">${f.updated}</span>
+    </div>`;
+  }).join('');
+
+  const noMac = st.connected_devices === 0;
+  const pending = st.pending || {devices: [], folders: []};
+
+  const pendingHtml = [
+    ...pending.devices.map(d => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:var(--yellow);flex:1">⌛ New device: ${d.name || d.device_id.slice(0,7)}</span>
+        <button class="btn btn-teal" style="font-size:11px;padding:3px 10px"
+          onclick="stAcceptDevice('${d.device_id}','${d.name}')">Accept</button>
+      </div>`),
+    ...pending.folders.map(f => {
+      const safeFid = f.folder_id.replace(/'/g, '');
+      const defaultPath = 'raw_sources/' + (f.label || f.folder_id).toLowerCase().replace(/\s+/g, '_');
+      return `
+      <div style="padding:9px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+          <span style="color:var(--yellow);flex:1">⌛ Folder: ${f.label || f.folder_id}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="fp-${safeFid}" value="${defaultPath}"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:4px 8px;font-size:11px;color:var(--text);font-family:monospace;outline:none">
+          <button class="btn btn-teal" style="font-size:11px;padding:3px 10px"
+            onclick="stAcceptFolder('${safeFid}','${f.label}','${f.from_device}')">Accept</button>
+        </div>
+      </div>`;
+    }),
+  ].join('');
+
+  const guide = `
+    <details style="margin-top:14px" ${noMac ? 'open' : ''}>
+      <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px">▶</span> Setup guide
+      </summary>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:2;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px">
+        <strong style="color:var(--text);display:block;margin-bottom:6px">Pairing your Mac</strong>
+        <strong style="color:var(--text)">1.</strong> Install Syncthing on Mac:
+          <a href="https://syncthing.net/downloads/" target="_blank" style="color:var(--teal)">syncthing.net/downloads</a><br>
+        <strong style="color:var(--text)">2.</strong> Open <code style="background:var(--card);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">http://localhost:8384</code> in your Mac browser<br>
+        <strong style="color:var(--text)">3.</strong> Actions → <strong style="color:var(--text)">Add Remote Device</strong> → paste the VPS Device ID (Copy above)<br>
+        <strong style="color:var(--text)">4.</strong> On the folder to sync → Edit → Sharing → tick the VPS device → Save<br>
+        <strong style="color:var(--text)">5.</strong> A request will appear above — confirm the local path and click Accept
+      </div>
+    </details>`;
+
+  body.innerHTML = `
+    <div class="st-device">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">VPS Device ID</span>
+      <span class="id" title="${st.device_id}">${st.device_id}</span>
+      <button class="st-copy" onclick="copyDeviceId('${st.device_id}')">Copy</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:${folders || pendingHtml ? '12px' : '0'}">${st.connected_devices} of ${st.total_devices} devices connected</p>
+    ${pendingHtml}
+    ${folders}
+    ${guide}`;
+}
+
+async function stAcceptDevice(deviceId, name) {
+  const r = await fetch('/api/syncthing/accept/device', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ device_id: deviceId, name }),
+  });
+  if (r.ok) setTimeout(refresh, 800);
+}
+
+async function stAcceptFolder(folderId, label, fromDevice) {
+  const pathEl = document.getElementById('fp-' + folderId);
+  const localPath = pathEl ? pathEl.value.trim() : 'raw_sources/' + label;
+  const r = await fetch('/api/syncthing/accept/folder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ folder_id: folderId, label, local_path: localPath, device_id: fromDevice }),
+  });
+  if (r.ok) setTimeout(refresh, 800);
+}
+
+function copyDeviceId(id) {
+  navigator.clipboard.writeText(id).then(() => {
+    const btn = document.querySelector('.st-copy');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); }
+  });
+}
+
+// ── Resources ─────────────────────────────────────
+function renderResources(r) {
+  const bar = pct => {
+    const cls = pct > 85 ? 'danger' : pct > 60 ? 'warn' : '';
+    return `<div class="bar-bg"><div class="bar-fill ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>`;
+  };
+  document.getElementById('resources-list').innerHTML = [
+    ['RAM',  `${r.ram_used_mb} / ${r.ram_total_mb} MB`,   r.ram_pct],
+    ['Disk', `${r.disk_used_gb} / ${r.disk_total_gb} GB`, r.disk_pct],
+    ['CPU',  `${r.cpu_pct}%`,                             r.cpu_pct],
+  ].map(([lbl, val, pct]) =>
+    `<div class="res-row">
+      <div class="res-hd"><span class="lbl">${lbl}</span><span class="val">${val}</span></div>
+      ${bar(pct)}
+    </div>`).join('');
+}
+
+// ── Integrations ──────────────────────────────────
+const INFRA_TYPES = ['cli', 'setup_token'];
+const INFRA_NAMES = ['anthropic']; // api_key but powers the agent, not a data source
+
+function renderIntegrations(integrations) {
+  const google  = integrations.find(i => i.name === 'google');
+  const infra   = integrations.filter(i => i.name !== 'google' && (INFRA_TYPES.includes(i.auth_type) || INFRA_NAMES.includes(i.name)));
+  const sources = integrations.filter(i => i.name !== 'google' && !INFRA_TYPES.includes(i.auth_type) && !INFRA_NAMES.includes(i.name));
+
+  if (google) renderGoogleCard(google);
+  renderPatCards(sources);
+  renderInfraCards(infra);
+}
+
+function renderInfraCards(items) {
+  const el = document.getElementById('infra-cards');
+  if (!el) return;
+  el.innerHTML = items.map(i => {
+    if (i.auth_type === 'setup_token') return renderSetupTokenCard(i);
+    if (i.auth_type === 'api_key' || i.auth_type === 'personal_access_token') return renderPatCard(i);
+    // cli — read-only status card
+    const ok = i.status === 'ok';
+    return `<div class="card">
+      <div class="card-hd">${i.icon ? i.icon + ' ' : ''}${i.label}<span class="badge ${ok ? 'badge-ok' : 'badge-none'}">${ok ? 'Active' : i.status}</span></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">${i.description}</p>
+      <div style="font-size:12px;color:var(--muted)">${i.detail || ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Google card ───────────────────────────────────
+function renderGoogleCard(g) {
+  const badge    = document.getElementById('google-badge');
+  const nocreds  = document.getElementById('gs-nocreds');
+  const configured = document.getElementById('gs-configured');
+  const emailRow = document.getElementById('gs-email-row');
+  const disconnectBtn = document.getElementById('gs-disconnect');
+
+  // Store pipeline state
+  gPipelines = Array.isArray(g.pipelines) ? g.pipelines.filter(p => typeof p === 'object') : [];
+  gGranted   = new Set(g.granted_pipelines || []);
+
+  // Initialize selection to currently granted (preserve user edits on re-render)
+  if (gSelected.size === 0) gSelected = new Set(gGranted);
+
+  document.getElementById('g-redirect-uri').textContent =
+    window.location.origin + '/oauth/callback/google';
+
+  if (g.status === 'no_credentials') {
+    badge.className = 'badge badge-none'; badge.textContent = 'Not configured';
+    nocreds.style.display = 'block'; configured.style.display = 'none';
+    return;
+  }
+
+  nocreds.style.display = 'none'; configured.style.display = 'block';
+
+  if (g.status === 'ok') {
+    badge.className = 'badge badge-ok'; badge.textContent = 'Connected';
+    emailRow.style.display = 'block';
+    document.getElementById('google-email').textContent = g.email || '';
+    disconnectBtn.style.display = 'inline';
+  } else {
+    badge.className = 'badge badge-awaiting'; badge.textContent = 'Awaiting sign-in';
+    emailRow.style.display = 'none';
+    disconnectBtn.style.display = 'none';
+  }
+
+  renderPipelineRows();
+}
+
+function renderPipelineRows() {
+  const container = document.getElementById('google-pipelines');
+  container.innerHTML = gPipelines.map(p => {
+    const isGranted    = gGranted.has(p.id);
+    const isSelected   = gSelected.has(p.id);
+    const isRetracting = isGranted && !isSelected;
+    const access       = p.access || 'Read';
+    let btnCls, btnLabel;
+    if (isSelected && isRetracting) {
+      btnCls = 'retracting'; btnLabel = `${access} · removing`;
+    } else if (isSelected) {
+      btnCls = 'active';     btnLabel = `${access} ✓`;
+    } else {
+      btnCls = '';           btnLabel = 'Off';
+    }
+    return `<div class="perm-row">
+      <span class="perm-name">
+        <span class="perm-icon" style="background:${p.color||'#444'};color:#fff">${p.icon||'?'}</span>
+        ${p.label}
+      </span>
+      <button class="perm-btn ${btnCls}" onclick="togglePipeline('${p.id}')" title="Click to ${isSelected ? 'disable' : 'enable'}">${btnLabel}</button>
+    </div>`;
+  }).join('');
+
+  updateSignInBtn();
+}
+
+function togglePipeline(id) {
+  if (gSelected.has(id)) gSelected.delete(id);
+  else gSelected.add(id);
+  renderPipelineRows();
+}
+
+function updateSignInBtn() {
+  const selected = [...gSelected];
+  const isRetracting = [...gGranted].some(p => !gSelected.has(p));
+  const notice = document.getElementById('retract-notice');
+  notice.style.display = isRetracting ? 'block' : 'none';
+
+  const params = selected.length ? `?pipelines=${selected.join(',')}` : '';
+  const btn = document.getElementById('google-signin-btn');
+  btn.href = `/oauth/google${params}`;
+
+  // If connected and nothing changed, show Reconnect label; if changes pending, show Update
+  const hasChanges = isRetracting || [...gSelected].some(p => !gGranted.has(p));
+  if (gGranted.size > 0) {
+    btn.textContent = hasChanges ? 'Update permissions' : 'Reconnect';
+  } else {
+    btn.textContent = 'Sign in with Google';
+  }
+}
+
+function showCredForm(show) {
+  document.getElementById('google-creds-form').style.display = show ? 'block' : 'none';
+  document.getElementById('g-creds-msg').textContent = '';
+}
+
+async function saveGoogleCreds() {
+  const id  = document.getElementById('g-client-id').value.trim();
+  const sec = document.getElementById('g-client-secret').value.trim();
+  if (!id || !sec) return;
+  await Promise.all([
+    fetch('/api/integrations/google/configure', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ env_key: 'GOOGLE_CLIENT_ID', value: id }) }),
+    fetch('/api/integrations/google/configure', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ env_key: 'GOOGLE_CLIENT_SECRET', value: sec }) }),
+  ]);
+  const msg = document.getElementById('g-creds-msg');
+  msg.style.color = 'var(--teal)'; msg.textContent = '✓ Saved';
+  showCredForm(false);
+  setTimeout(refresh, 200);
+}
+
+async function disconnectGoogle() {
+  await fetch('/api/integrations/google/disconnect', { method: 'POST', headers: { 'X-Admin-Token': tok } });
+  gSelected.clear(); gGranted.clear();
+  refresh();
+}
+
+// ── PAT / API key / setup_token / file_sync cards ─
+function renderPatCards(integrations) {
+  document.getElementById('pat-cards').innerHTML = integrations.map(i => {
+    if (i.auth_type === 'setup_token') return renderSetupTokenCard(i);
+    if (i.auth_type === 'file_sync')   return renderFileSyncCard(i);
+    return renderPatCard(i);
+  }).join('');
+}
+
+function renderFileSyncCard(i) {
+  const statusMap = {
+    ok:            ['badge-ok',      'Synced'],
+    stale:         ['badge-awaiting','Stale'],
+    pending_setup: ['badge-none',    'Pending setup'],
+  };
+  const [bCls, bTxt] = statusMap[i.status] || ['badge-none', i.status];
+  const guide = (i.setup_guide || '').replace(/\n/g, '<br>');
+
+  return `<div class="card" id="card-${i.name}">
+    <div class="card-hd">
+      <span>${i.icon ? i.icon + ' ' : ''}${i.label}</span>
+      <span class="badge ${bCls}">${bTxt}</span>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">${i.description}</p>
+    ${i.status === 'pending_setup' ? `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:4px;font-size:12px;color:var(--muted);line-height:1.8">
+        <strong style="color:var(--text);display:block;margin-bottom:8px">Setup guide</strong>
+        ${guide}
+      </div>
+    ` : `
+      <div style="font-size:12px;color:var(--muted)">${i.detail || ''}</div>
+    `}
+  </div>`;
+}
+
+function renderSetupTokenCard(i) {
+  const ok = i.status === 'ok';
+  const bCls = ok ? 'badge-ok' : 'badge-none';
+  const bTxt = ok ? 'Active' : 'Developer account';
+
+  return `<div class="card" id="card-${i.name}">
+    <div class="card-hd">${i.label}<span class="badge ${bCls}">${bTxt}</span></div>
+
+    <!-- current account row -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">Account</span>
+      <span style="font-family:monospace;font-size:12px;color:var(--text);flex:1">${i.detail || '—'}</span>
+    </div>
+
+    <!-- OAuth flow panel -->
+    <div id="oauth-panel-${i.name}" style="display:none;margin-bottom:12px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">1. Open this link on your phone or Mac, signed in as the account you want to use:</p>
+      <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:12px">
+        <a id="oauth-link-${i.name}" href="#" target="_blank" style="font-size:11px;font-family:monospace;word-break:break-all;color:var(--teal);flex:1;line-height:1.5"></a>
+        <button class="btn btn-ghost" style="flex-shrink:0;font-size:11px" onclick="copyOAuthUrl('${i.name}',event)">Copy</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:6px">2. After signing in, paste the code shown in the browser:</p>
+      <div class="field" style="margin-bottom:8px">
+        <input id="oauth-code-inp-${i.name}" type="text" placeholder="Paste code from browser…" style="font-family:monospace;font-size:12px">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-teal" onclick="claudeAuthSubmit('${i.name}')">Authenticate</button>
+        <button class="btn btn-ghost" onclick="claudeAuthCancel('${i.name}')">Cancel</button>
+        <span id="oauth-msg-${i.name}" style="font-size:12px"></span>
+      </div>
+    </div>
+
+    <!-- manual paste panel -->
+    <div id="setup-form-${i.name}" style="display:none;margin-bottom:12px">
+      <div class="field">
+        <label>Setup Token</label>
+        <input id="setup-inp-${i.name}" type="password" placeholder="sk-ant-oat01-...">
+      </div>
+      <p class="hint">Token is inference-only and uses your Claude Pro/Max subscription.</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-teal" onclick="saveSetupToken('${i.name}','${i.env_key}')">Save &amp; Apply</button>
+        <span id="setup-msg-${i.name}" style="font-size:12px"></span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-teal" id="oauth-start-btn-${i.name}" onclick="claudeAuthStart('${i.name}')">Login with Claude</button>
+      <button class="btn btn-ghost" id="paste-toggle-btn-${i.name}" onclick="toggleClaudePaste('${i.name}')">Paste token</button>
+    </div>
+  </div>`;
+}
+
+function renderPatCard(i) {
+  const ok = i.status === 'ok';
+  const bCls = ok ? 'badge-ok' : i.status === 'unconfigured' ? 'badge-none' : 'badge-error';
+  const bTxt = ok ? 'Connected' : i.status === 'unconfigured' ? 'Not configured' : 'Error';
+  const configurable = i.auth_type === 'personal_access_token' || i.auth_type === 'api_key';
+
+  return `<div class="card">
+    <div class="card-hd">${i.label}<span class="badge ${bCls}">${bTxt}</span></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:${configurable ? '12px' : '0'}">${i.description}</p>
+    ${configurable ? `
+      ${ok ? `<div class="token-row"><span class="val">••••••••••••••••••••</span></div>` : ''}
+      <div id="pat-form-${i.name}" style="${ok ? 'display:none' : 'display:block'}">
+        <div class="field">
+          <label>${i.auth_type === 'api_key' ? 'API Key' : 'Personal Access Token'}</label>
+          <input id="pat-inp-${i.name}" type="password" placeholder="Paste token here">
+        </div>
+        ${i.setup_url ? `<p class="hint"><a href="${i.setup_url}" target="_blank">${i.setup_note || 'Get token →'}</a></p>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${ok
+          ? `<button class="btn btn-ghost" id="pat-edit-${i.name}" onclick="togglePatEdit('${i.name}')">Edit</button>`
+          : `<button class="btn btn-teal" onclick="savePat('${i.name}','${i.env_key}')">Save &amp; Test</button>`}
+        <span id="pat-msg-${i.name}" style="font-size:12px"></span>
+      </div>
+    ` : `<span style="font-size:12px;color:var(--muted)">${i.detail || ''}</span>`}
+  </div>`;
+}
+
+function toggleClaudePaste(name) {
+  const form  = document.getElementById(`setup-form-${name}`);
+  const btn   = document.getElementById(`paste-toggle-btn-${name}`);
+  const open  = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  if (open) document.getElementById(`oauth-panel-${name}`).style.display = 'none';
+  if (btn)  btn.textContent = open ? 'Cancel' : 'Paste token';
+}
+
+const _claudeAuthSessions = {};
+
+async function claudeAuthStart(name) {
+  const btn   = document.getElementById(`oauth-start-btn-${name}`);
+  const panel = document.getElementById(`oauth-panel-${name}`);
+  const link  = document.getElementById(`oauth-link-${name}`);
+  const msg   = document.getElementById(`oauth-msg-${name}`);
+
+  // Hide paste form if open
+  document.getElementById(`setup-form-${name}`).style.display = 'none';
+  document.getElementById(`paste-toggle-btn-${name}`).textContent = 'Paste token';
+
+  btn.disabled = true; btn.textContent = 'Starting…';
+  panel.style.display = 'block';
+  link.textContent = ''; link.href = '#';
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Launching auth…';
+
+  try {
+    const r = await fetch(`/api/integrations/${name}/auth/start`, {
+      method: 'POST', headers: { 'X-Admin-Token': tok }
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      _claudeAuthSessions[name] = d.session_id;
+      link.href = d.url; link.textContent = d.url;
+      msg.textContent = '';
+      btn.textContent = 'Restart'; btn.disabled = false;
+    } else {
+      msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Failed';
+      btn.textContent = 'Login with Claude'; btn.disabled = false;
+    }
+  } catch {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Network error';
+    btn.textContent = 'Login with Claude'; btn.disabled = false;
+  }
+}
+
+async function claudeAuthSubmit(name) {
+  const code = document.getElementById(`oauth-code-inp-${name}`).value.trim();
+  const msg  = document.getElementById(`oauth-msg-${name}`);
+  const sid  = _claudeAuthSessions[name];
+
+  if (!code) { msg.style.color = 'var(--red)'; msg.textContent = 'Paste the code first'; return; }
+  if (!sid)  { msg.style.color = 'var(--red)'; msg.textContent = 'Click Login with Claude first'; return; }
+
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Authenticating…';
+
+  try {
+    const r = await fetch(`/api/integrations/${name}/auth/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ session_id: sid, code })
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      msg.style.color = 'var(--teal)';
+      msg.textContent = '✓ Logged in' + (d.email ? ' as ' + d.email : '');
+      delete _claudeAuthSessions[name];
+      setTimeout(refresh, 1500);
+    } else {
+      msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Auth failed';
+    }
+  } catch {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Network error';
+  }
+}
+
+function claudeAuthCancel(name) {
+  document.getElementById(`oauth-panel-${name}`).style.display = 'none';
+  document.getElementById(`oauth-code-inp-${name}`).value = '';
+  document.getElementById(`oauth-msg-${name}`).textContent = '';
+  document.getElementById(`oauth-start-btn-${name}`).textContent = 'Login with Claude';
+  delete _claudeAuthSessions[name];
+}
+
+function copyOAuthUrl(name, event) {
+  const url = document.getElementById(`oauth-link-${name}`).textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    event.target.textContent = 'Copied!';
+    setTimeout(() => event.target.textContent = 'Copy', 1500);
+  });
+}
+
+async function saveSetupToken(name, envKey) {
+  const val = document.getElementById(`setup-inp-${name}`).value.trim();
+  if (!val) return;
+  const msg = document.getElementById(`setup-msg-${name}`);
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Saving & restarting bot…';
+
+  const r = await fetch(`/api/integrations/${name}/configure`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ env_key: envKey, value: val })
+  });
+  const d = await r.json();
+  if (d.status === 'ok') {
+    msg.style.color = 'var(--teal)'; msg.textContent = '✓ Applied';
+    setTimeout(refresh, 1500);
+  } else {
+    msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Failed';
+  }
+}
+
+function togglePatEdit(name) {
+  const form = document.getElementById(`pat-form-${name}`);
+  const btn  = document.getElementById(`pat-edit-${name}`);
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? 'Cancel' : 'Edit';
+}
+
+async function savePat(name, envKey) {
+  const val = document.getElementById(`pat-inp-${name}`).value.trim();
+  if (!val) return;
+  const msg = document.getElementById(`pat-msg-${name}`);
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Testing…';
+  const r = await fetch(`/api/integrations/${name}/configure`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ env_key: envKey, value: val })
+  });
+  const d = await r.json();
+  if (d.status === 'ok') {
+    msg.style.color = 'var(--teal)'; msg.textContent = '✓ Connected';
+    setTimeout(refresh, 600);
+  } else {
+    msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Failed';
+  }
+}
+
+// ── Cron ──────────────────────────────────────────
+async function loadCron() {
+  const r = await fetch('/api/cron', { headers: { 'X-Admin-Token': tok } });
+  const jobs = await r.json();
+  const enabled = jobs.filter(j => j.enabled).length;
+  document.getElementById('cron-subtitle').textContent =
+    `${enabled} of ${jobs.length} jobs active`;
+  document.getElementById('cron-list').innerHTML = jobs.map(j => renderCronCard(j)).join('');
+}
+
+function renderCronCard(j) {
+  // Infer last run status from last log line
+  const last = j.last_lines && j.last_lines.length ? j.last_lines[j.last_lines.length - 1] : '';
+  const ranOk = last && !last.toLowerCase().includes('error') && !last.toLowerCase().includes('failed');
+  const lastRunHtml = last
+    ? `<span style="font-size:11px;color:${ranOk ? 'var(--teal)' : 'var(--red)'}">
+         ${ranOk ? '✓' : '✗'} Last run: ${escHtml(last.slice(0, 80))}
+       </span>`
+    : `<span style="font-size:11px;color:var(--muted)">Not run yet</span>`;
+
+  return `<div class="card" id="cron-card-${j.id}">
+    <div class="card-hd">
+      ${j.label}
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" ${j.enabled ? 'checked' : ''} onchange="toggleJob('${j.id}', this.checked)"
+          style="accent-color:var(--teal)">
+        ${j.enabled ? 'Enabled' : 'Disabled'}
+      </label>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">${j.description || ''}</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-family:monospace;font-size:11px;color:var(--muted)">${j.schedule}</span>
+      <select onchange="rescheduleJob('${j.id}', this.value)"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--muted);font-size:11px;outline:none">
+        <option value="">Change schedule…</option>
+        <option value="0 2 * * *">Daily 2am</option>
+        <option value="0 7 * * *">Daily 7am</option>
+        <option value="0 22 * * *">Daily 10pm</option>
+        <option value="30 4 * * 0">Sunday 4:30am</option>
+        <option value="0 * * * *">Hourly</option>
+      </select>
+      <button class="btn btn-ghost" style="font-size:11px;padding:3px 10px" onclick="runJob('${j.id}')">▶ Run now</button>
+      <span id="cron-msg-${j.id}" style="font-size:11px"></span>
+    </div>
+    ${lastRunHtml}
+  </div>`;
+}
+
+async function toggleJob(id, enabled) {
+  await fetch(`/api/cron/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ enabled })
+  });
+  loadCron();
+}
+
+async function rescheduleJob(id, schedule) {
+  if (!schedule) return;
+  await fetch(`/api/cron/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+    body: JSON.stringify({ schedule })
+  });
+  loadCron();
+}
+
+async function runJob(id) {
+  const msg = document.getElementById(`cron-msg-${id}`);
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Starting…';
+  const r = await fetch(`/api/cron/${id}/run`, {
+    method: 'POST', headers: { 'X-Admin-Token': tok }
+  });
+  if (r.ok) {
+    msg.style.color = 'var(--teal)'; msg.textContent = '✓ Started';
+    setTimeout(() => loadCron(), 3000);
+  } else {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Failed';
+  }
+}
+
+async function deleteJob(id) {
+  if (!confirm(`Delete job "${id}"?`)) return;
+  await fetch(`/api/cron/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': tok } });
+  loadCron();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Catalog ───────────────────────────────────────
+async function loadCatalog() {
+  const r = await fetch('/api/catalog', { headers: { 'X-Admin-Token': tok } });
+  const items = await r.json();
+  const el = document.getElementById('catalog-list');
+  if (!items.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted)">All available integrations are already installed.</p>';
+    return;
+  }
+  el.innerHTML = items.map(i => renderCatalogCard(i)).join('');
+}
+
+function renderCatalogCard(i) {
+  const authBadge = {
+    file_sync:            'file sync',
+    oauth2:               'OAuth',
+    personal_access_token:'token',
+    api_key:              'API key',
+    setup_token:          'setup token',
+  }[i.auth_type] || i.auth_type;
+
+  return `<div class="card" id="catalog-card-${i.name}">
+    <div class="card-hd">
+      <span>${i.icon ? i.icon + ' ' : ''}${i.label}</span>
+      <span class="badge badge-none">${authBadge}</span>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${i.description}</p>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn btn-teal" onclick="installCatalog('${i.name}')">Install</button>
+      <span id="catalog-msg-${i.name}" style="font-size:12px"></span>
+    </div>
+  </div>`;
+}
+
+async function installCatalog(name) {
+  const msg = document.getElementById(`catalog-msg-${name}`);
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Installing…';
+  const r = await fetch(`/api/catalog/${name}/install`, {
+    method: 'POST', headers: { 'X-Admin-Token': tok }
+  });
+  if (r.ok) {
+    msg.style.color = 'var(--teal)'; msg.textContent = '✓ Installed';
+    // Remove card after brief pause, then re-render integrations
+    setTimeout(() => {
+      document.getElementById(`catalog-card-${name}`)?.remove();
+      refresh();
+    }, 1000);
+  } else {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Failed';
+  }
+}
+
+// ── Envars ────────────────────────────────────────
+async function loadEnvars() {
+  const r = await fetch('/api/env', { headers: { 'X-Admin-Token': tok } });
+  const d = await r.json();
+  document.getElementById('envars-list').innerHTML =
+    Object.entries(d).map(([k, v]) =>
+      `<div class="envar-row">
+        <span class="envar-key">${k}</span>
+        <span class="envar-val">${v || '<span style="color:var(--muted)">—</span>'}</span>
+      </div>`).join('') || '<span style="color:var(--muted)">No entries</span>';
+}
+
+// ── Init ──────────────────────────────────────────
+checkAuth();
+handleHash();
+</script>
 </body>
 </html>

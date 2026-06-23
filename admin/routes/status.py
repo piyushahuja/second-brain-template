@@ -1,60 +1,52 @@
-"""
-/api/status — System health and service status
-"""
-
-import subprocess
+import os
 from flask import Blueprint, jsonify
+from admin.auth import require_admin
+from admin.health import check_service, check_resources, check_integration
+from admin.manifest_loader import load_manifests
+from admin.syncthing import get_info as syncthing_info
 
 bp = Blueprint('status', __name__)
 
+SERVICES = ['second-brain-bot', 'second-brain-admin']
+
+
+def _integration_dict(m, health):
+    auth = m['auth']
+    return {
+        'name': m['name'],
+        'label': m['label'],
+        'description': m['description'],
+        'icon': m.get('icon', ''),
+        'auth_type': auth.get('type'),
+        'env_key': auth.get('env_key', ''),
+        'setup_url': auth.get('setup_url'),
+        'setup_note': auth.get('setup_note'),
+        'setup_guide': auth.get('setup_guide', ''),
+        'status': health['status'],
+        'detail': health['detail'],
+        'pipelines': m.get('pipelines', []),
+    }
+
 
 @bp.route('/status')
+@require_admin
 def status():
-    """Return system health: services, uptime, disk, memory."""
-    # Bot service status
-    bot_status = _check_service('second-brain-bot')
+    services = {svc: check_service(svc) for svc in SERVICES}
+    resources = check_resources()
 
-    # Disk usage
-    disk = _disk_usage()
+    integrations = []
+    for m in load_manifests():
+        health = check_integration(m)
+        entry = _integration_dict(m, health)
+        if m['name'] == 'google':
+            entry['email'] = os.getenv('GOOGLE_EMAIL', '')
+            granted_raw = os.getenv('GOOGLE_GRANTED_SCOPES', '')
+            entry['granted_pipelines'] = [p for p in granted_raw.split(',') if p]
+        integrations.append(entry)
 
     return jsonify({
-        'bot': bot_status,
-        'disk': disk,
+        'services': services,
+        'resources': resources,
+        'integrations': integrations,
+        'syncthing': syncthing_info(),
     })
-
-
-def _check_service(name: str) -> dict:
-    """Check if a systemd user service is running."""
-    try:
-        result = subprocess.run(
-            ['systemctl', '--user', 'is-active', name],
-            capture_output=True, text=True, timeout=5
-        )
-        return {
-            'name': name,
-            'active': result.stdout.strip() == 'active',
-            'status': result.stdout.strip()
-        }
-    except Exception as e:
-        return {'name': name, 'active': False, 'status': str(e)}
-
-
-def _disk_usage() -> dict:
-    """Get disk usage for workspace."""
-    try:
-        result = subprocess.run(
-            ['df', '-h', '.'],
-            capture_output=True, text=True, timeout=5
-        )
-        lines = result.stdout.strip().split('\n')
-        if len(lines) >= 2:
-            parts = lines[1].split()
-            return {
-                'total': parts[1],
-                'used': parts[2],
-                'available': parts[3],
-                'percent': parts[4]
-            }
-    except Exception:
-        pass
-    return {}
