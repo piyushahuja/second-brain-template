@@ -97,7 +97,7 @@ uv pip install --quiet --python "$PYTHON" python-telegram-bot pyyaml
 # Optional: Admin panel
 if [ "$WITH_ADMIN" = true ]; then
     echo "Installing admin panel dependencies..."
-    uv pip install --quiet --python "$PYTHON" flask
+    uv pip install --quiet --python "$PYTHON" flask python-dotenv
 fi
 
 # Optional: Voice transcription
