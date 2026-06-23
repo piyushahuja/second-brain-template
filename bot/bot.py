@@ -45,9 +45,9 @@ SYSTEM_PROMPT_FILE = SCRIPT_DIR / "system-prompt.md"
 
 STATE_DIR.mkdir(exist_ok=True)
 
-# Make bot/ importable so we can load providers.py from the same directory
+# Make bot/ importable so we can load orchestrator.py from the same directory
 sys.path.insert(0, str(SCRIPT_DIR))
-from providers import Provider, create_provider, ProviderUnavailable  # noqa: E402
+from orchestrator import Orchestrator, create_orchestrator, OrchestratorUnavailable  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -92,35 +92,35 @@ if not TELEGRAM_USER_ID:
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
-# Providers
+# Orchestrators
 # ---------------------------------------------------------------------------
-def _load_providers() -> tuple[Provider, Provider | None]:
-    cfg           = CONFIG.get("providers", {})
+def _load_orchestrators() -> tuple[Orchestrator, Orchestrator | None]:
+    cfg           = CONFIG.get("orchestrators", {})
     default_name  = cfg.get("default", "claude")
     fallback_name = cfg.get("fallback")
 
     try:
-        default = create_provider(default_name)
+        default = create_orchestrator(default_name)
     except ValueError as e:
-        log.error(f"Invalid default provider {default_name!r}: {e} — falling back to claude")
-        default = create_provider("claude")
+        log.error(f"Invalid default orchestrator {default_name!r}: {e} — falling back to claude")
+        default = create_orchestrator("claude")
         default_name = "claude"
 
     fallback = None
     if fallback_name and fallback_name != default_name:
         try:
-            fallback = create_provider(fallback_name)
+            fallback = create_orchestrator(fallback_name)
         except ValueError as e:
-            log.warning(f"Invalid fallback provider {fallback_name!r}: {e} — disabled")
+            log.warning(f"Invalid fallback orchestrator {fallback_name!r}: {e} — disabled")
 
     log.info(
-        f"Provider: {default_name}"
+        f"Orchestrator: {default_name}"
         + (f" | fallback: {fallback_name}" if fallback_name else "")
     )
     return default, fallback
 
 
-DEFAULT_PROVIDER, FALLBACK_PROVIDER = _load_providers()
+DEFAULT_ORCHESTRATOR, FALLBACK_ORCHESTRATOR = _load_orchestrators()
 
 # ---------------------------------------------------------------------------
 # Session State
@@ -196,40 +196,40 @@ async def query(prompt: str, domain: str = "general") -> str:
         context = DOMAIN_CONTEXT[domain]
         prompt  = f"[Domain: {domain} — {context}]\n\n{prompt}"
 
-    providers_to_try = [(DEFAULT_PROVIDER, False)]
-    if FALLBACK_PROVIDER:
-        providers_to_try.append((FALLBACK_PROVIDER, True))
+    orchestrators_to_try = [(DEFAULT_ORCHESTRATOR, False)]
+    if FALLBACK_ORCHESTRATOR:
+        orchestrators_to_try.append((FALLBACK_ORCHESTRATOR, True))
 
     last_error = None
-    for provider, is_fallback in providers_to_try:
+    for orchestrator, is_fallback in orchestrators_to_try:
         label = "fallback" if is_fallback else "primary"
         sid   = session_id if not is_fallback else None  # don't carry Claude sessions to Codex
 
         try:
-            text, new_session_id = await provider.query(prompt, sid, system_prompt)
+            text, new_session_id = await orchestrator.query(prompt, sid, system_prompt)
             save_state({
                 "session_id": new_session_id,
                 "created":    state.get("created", datetime.now(timezone.utc).isoformat()),
                 "queries":    state.get("queries", 0) + 1,
             })
             if is_fallback:
-                text = f"_(via fallback provider)_\n\n{text}"
+                text = f"_(via fallback orchestrator)_\n\n{text}"
             return text
 
-        except ProviderUnavailable as e:
-            log.warning(f"{label} provider unavailable: {e}")
+        except OrchestratorUnavailable as e:
+            log.warning(f"{label} orchestrator unavailable: {e}")
             last_error = str(e)
-            # continue to next provider
+            # continue to next orchestrator
 
         except RuntimeError as e:
             err = str(e)
-            if provider.is_session_invalid(err):
+            if orchestrator.is_session_invalid(err):
                 clear_state()
                 return "Session expired. Please send your message again."
-            log.error(f"{label} provider error: {err}")
+            log.error(f"{label} orchestrator error: {err}")
             return f"Error: {err[:300]}"
 
-    return f"All providers unavailable. Last error: {last_error or 'unknown'}"
+    return f"All orchestrators unavailable. Last error: {last_error or 'unknown'}"
 
 
 # ---------------------------------------------------------------------------
@@ -299,11 +299,11 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     state = load_state()
-    cfg   = CONFIG.get("providers", {})
+    cfg   = CONFIG.get("orchestrators", {})
     prov  = cfg.get("default", "claude")
     fb    = cfg.get("fallback")
 
-    provider_line = f"Provider: {prov}" + (f" (fallback: {fb})" if fb else "")
+    provider_line = f"Orchestrator: {prov}" + (f" (fallback: {fb})" if fb else "")
 
     if not state:
         await update.message.reply_text(

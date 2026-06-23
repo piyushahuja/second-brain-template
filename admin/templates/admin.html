@@ -1254,7 +1254,7 @@ function copyDauthUrl(name, event) {
 // ── Providers ─────────────────────────────────────
 async function loadProviders() {
   try {
-    const r = await fetch('/api/config/providers', { headers: { 'X-Admin-Token': tok } });
+    const r = await fetch('/api/config/orchestrators', { headers: { 'X-Admin-Token': tok } });
     if (!r.ok) return;
     const d = await r.json();
     document.getElementById('prov-default').value  = d.default  || 'claude';
@@ -1273,7 +1273,7 @@ async function saveProviders() {
   }
 
   try {
-    const r = await fetch('/api/config/providers', {
+    const r = await fetch('/api/config/orchestrators', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
       body: JSON.stringify({ default: def, fallback: fb }),
