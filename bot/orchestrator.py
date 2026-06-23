@@ -100,10 +100,6 @@ class CodexOrchestrator(Orchestrator):
     async def query(
         self, prompt: str, session_id: str | None, system_prompt: str
     ) -> tuple[str, str | None]:
-        has_key = bool(os.environ.get("CODEX_API_KEY") or os.environ.get("OPENAI_API_KEY"))
-        if not has_key:
-            raise OrchestratorUnavailable("CODEX_API_KEY or OPENAI_API_KEY not set")
-
         # Codex has no --system-prompt flag; prepend context to the prompt
         full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
@@ -142,7 +138,7 @@ class CodexOrchestrator(Orchestrator):
 
             if proc.returncode != 0:
                 err = stderr.decode().strip()
-                if any(x in err.lower() for x in ("auth", "unauthorized", "api key", "invalid key")):
+                if any(x in err.lower() for x in ("auth", "unauthorized", "api key", "invalid key", "not logged in", "login")):
                     raise OrchestratorUnavailable(f"Codex auth error: {err[:200]}")
                 raise RuntimeError(err[:300])
 

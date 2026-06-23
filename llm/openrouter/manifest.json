@@ -8,6 +8,7 @@
     "setup_url": "https://openrouter.ai/keys",
     "setup_guide": "Create an API key at openrouter.ai"
   },
+  "restart_service": "second-brain-bot",
   "health": {
     "type": "env_key"
   }

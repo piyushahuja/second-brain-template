@@ -8,6 +8,7 @@
     "setup_url": "https://aistudio.google.com/app/apikey",
     "setup_guide": "Create a free API key at Google AI Studio"
   },
+  "restart_service": "second-brain-bot",
   "health": {
     "type": "env_key"
   }

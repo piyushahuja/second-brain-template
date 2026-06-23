@@ -337,6 +337,59 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+def _gemini_client():
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+    from llm.gemini.client import GeminiClient
+    return GeminiClient()
+
+
+async def cmd_gemini(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        return
+    prompt = " ".join(context.args).strip() if context.args else ""
+    if not prompt:
+        await update.message.reply_text("Usage: /gemini <prompt>")
+        return
+    await update.message.chat.send_action("typing")
+    try:
+        response = await _gemini_client().ask(prompt)
+        await send_reply(update, response)
+    except Exception as e:
+        await update.message.reply_text(f"Gemini error: {e}")
+
+
+async def cmd_imagine(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        return
+    prompt = " ".join(context.args).strip() if context.args else ""
+    if not prompt:
+        await update.message.reply_text("Usage: /imagine <prompt>")
+        return
+    await update.message.chat.send_action("upload_photo")
+    try:
+        image_bytes = await _gemini_client().generate_image(prompt)
+        await update.message.reply_photo(photo=image_bytes, caption=prompt)
+    except Exception as e:
+        await update.message.reply_text(f"Image generation error: {e}")
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        return
+    await update.message.chat.send_action("typing")
+    try:
+        photo = update.message.photo[-1]  # largest size
+        file  = await context.bot.get_file(photo.file_id)
+        path  = Path(f"/tmp/tg_photo_{photo.file_id}.jpg")
+        await file.download_to_drive(path)
+        caption = update.message.caption or "Describe this image."
+        response = await _gemini_client().ask(caption, files=[path])
+        path.unlink(missing_ok=True)
+        await send_reply(update, response)
+    except Exception as e:
+        await update.message.reply_text(f"Error processing photo: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -347,9 +400,12 @@ def main():
 
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    app.add_handler(CommandHandler("start",  cmd_start))
-    app.add_handler(CommandHandler("reset",  cmd_reset))
-    app.add_handler(CommandHandler("status", cmd_status))
+    app.add_handler(CommandHandler("start",   cmd_start))
+    app.add_handler(CommandHandler("reset",   cmd_reset))
+    app.add_handler(CommandHandler("status",  cmd_status))
+    app.add_handler(CommandHandler("gemini",  cmd_gemini))
+    app.add_handler(CommandHandler("imagine", cmd_imagine))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.run_polling(allowed_updates=Update.ALL_TYPES)
