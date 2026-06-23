@@ -227,11 +227,52 @@ if [ "$WITH_CODEX" = true ]; then
             echo "CODEX_PATH=$CODEX_FULL_PATH" >> "$SCRIPT_DIR/.env"
         fi
         echo "CODEX_PATH saved to .env"
-        echo ""
-        echo "Next: set CODEX_API_KEY in .env, then select Codex as fallback in the admin panel."
     else
         echo "Codex: not found after installation — check npm output above"
     fi
+
+    # Codex device-auth stores OAuth tokens in the OS keyring.
+    # On headless VPS there is no keyring daemon by default — install and
+    # enable gnome-keyring so tokens persist across sessions.
+    echo ""
+    echo "Setting up keyring for Codex device-auth..."
+    if ! command -v gnome-keyring-daemon &> /dev/null; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get install -y gnome-keyring
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y gnome-keyring
+        elif command -v brew &> /dev/null; then
+            echo "macOS: keyring handled natively, no extra install needed."
+        else
+            echo "Warning: could not install gnome-keyring — install it manually before using Codex device-auth."
+        fi
+    fi
+
+    if command -v gnome-keyring-daemon &> /dev/null; then
+        # Deploy systemd user service if not already present
+        SERVICE_DIR="$HOME/.config/systemd/user"
+        mkdir -p "$SERVICE_DIR"
+        cat > "$SERVICE_DIR/gnome-keyring.service" <<'SERVICE'
+[Unit]
+Description=GNOME Keyring daemon (headless)
+Documentation=man:gnome-keyring-daemon(1)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/gnome-keyring-daemon --foreground --unlock --components=secrets
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+SERVICE
+        systemctl --user daemon-reload
+        systemctl --user enable gnome-keyring.service
+        systemctl --user start gnome-keyring.service
+        echo "Keyring daemon enabled and started."
+    fi
+
+    echo ""
+    echo "Next: use 'Login with ChatGPT' in the admin panel to authenticate Codex."
 fi
 
 # --- Optional: Gemini LLM client ---
