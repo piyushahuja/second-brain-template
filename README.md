@@ -17,16 +17,37 @@ A personal AI assistant that runs on a VPS, accessible via Telegram, powered by 
 
 ## Quick Start
 
-### 1. Create a new instance
+### Before you begin
+
+You'll need three things before running setup:
+
+1. **Telegram bot token** — message [@BotFather](https://t.me/BotFather) → `/newbot`
+2. **Your Telegram user ID** — message [@userinfobot](https://t.me/userinfobot)
+3. **Anthropic API key** — [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) (or use `claude login` after install)
+
+### 1. Fork this template
+
+Create a new repo for the client on GitHub (e.g. `client-brain`), then push this template to it.
+
+### 2. Bootstrap on the VPS
+
+Run this on a fresh machine — it clones the repo, collects credentials, installs everything, and starts the bot:
 
 ```bash
-# Copy template to new repo
-cp -r second-brain-template/ ~/repos/<client>-brain/
-cd ~/repos/<client>-brain/
-git init
+bash <(curl -sSL https://raw.githubusercontent.com/you/second-brain-template/main/bootstrap.sh) \
+  --repo git@github.com:you/client-brain.git
 ```
 
-### 2. Personalise
+Or with optional components:
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/you/second-brain-template/main/bootstrap.sh) \
+  --repo git@github.com:you/client-brain.git --with-admin --with-gemini
+```
+
+The script will prompt for credentials, clone the repo to `~/second-brain`, write `deploy/.env`, run `deploy/install.sh`, and start the service.
+
+### 3. Personalise
 
 Fill in these files from the client's onboarding responses:
 
@@ -36,22 +57,7 @@ Fill in these files from the client's onboarding responses:
 | `SOUL.md` | Personality, tone, boundaries |
 | `deploy/.env` | Secrets (Telegram token, API keys) |
 
-### 3. Deploy
-
-```bash
-# Push to GitHub/GitLab
-git remote add origin git@github.com:you/<client>-brain.git
-git push -u origin main
-
-# On VPS
-git clone git@github.com:you/<client>-brain.git ~/second-brain
-cd ~/second-brain/deploy
-cp .env.example .env
-# Edit .env with secrets
-./install.sh
-```
-
-### 4. Start
+### 4. Start (if not already running)
 
 ```bash
 # Linux (systemd)
