@@ -248,11 +248,11 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$WORKSPACE_ROOT
+EnvironmentFile=$SCRIPT_DIR/.env
 ExecStart=$VENV_DIR/bin/python3 $BOT_DIR/bot.py
 Restart=always
 RestartSec=10
 Environment=PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
-Environment=ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 
 [Install]
 WantedBy=default.target
@@ -270,6 +270,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$WORKSPACE_ROOT
+EnvironmentFile=$SCRIPT_DIR/.env
 ExecStart=$VENV_DIR/bin/python3 $WORKSPACE_ROOT/admin/app.py
 Restart=always
 RestartSec=10
