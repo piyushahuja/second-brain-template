@@ -1,0 +1,19 @@
+{
+  "name": "claude_code",
+  "label": "Claude Code",
+  "description": "Claude AI — powers the agent",
+  "icon": "🤖",
+  "auth": {
+    "type": "claude_oauth",
+    "env_key": "ANTHROPIC_AUTH_TOKEN",
+    "token_env_keys": ["ANTHROPIC_AUTH_TOKEN"],
+    "setup_note": "Click 'Login with Claude' to authenticate via browser OAuth flow."
+  },
+  "restart_service": "second-brain-bot",
+  "pipelines": [],
+  "health": {
+    "type": "command",
+    "command": ["claude", "auth", "status"],
+    "expect_exit_code": 0
+  }
+}
