@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Brain Admin</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --text: #eee;
+            --muted: #888;
+            --accent: #0f3460;
+            --success: #4ade80;
+            --danger: #f87171;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 2rem;
+            line-height: 1.5;
+        }
+        h1 { margin-bottom: 1.5rem; font-weight: 500; }
+        .card {
+            background: var(--card);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .card h2 {
+            font-size: 0.875rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--accent);
+        }
+        .status-row:last-child { border-bottom: none; }
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge.success { background: var(--success); color: #000; }
+        .badge.danger { background: var(--danger); color: #000; }
+        .progress-bar {
+            height: 8px;
+            background: var(--accent);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s;
+        }
+        .progress-bar .fill.warn { background: #fbbf24; }
+        .progress-bar .fill.danger { background: var(--danger); }
+        #error {
+            color: var(--danger);
+            padding: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Second Brain</h1>
+    <div id="error"></div>
+
+    <div class="card">
+        <h2>Services</h2>
+        <div class="status-row">
+            <span>Telegram Bot</span>
+            <span id="bot-status" class="badge">...</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Resources</h2>
+        <div class="status-row">
+            <span>Disk</span>
+            <span id="disk-text">...</span>
+        </div>
+        <div class="progress-bar">
+            <div id="disk-bar" class="fill" style="width: 0%"></div>
+        </div>
+        <div class="status-row" style="margin-top: 1rem;">
+            <span>Memory</span>
+            <span id="mem-text">...</span>
+        </div>
+        <div class="progress-bar">
+            <div id="mem-bar" class="fill" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStatus() {
+            try {
+                const token = localStorage.getItem('admin_token') || '';
+                const res = await fetch('/api/status', {
+                    headers: { 'X-Admin-Token': token }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        const newToken = prompt('Enter admin token:');
+                        if (newToken) {
+                            localStorage.setItem('admin_token', newToken);
+                            return fetchStatus();
+                        }
+                    }
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                const data = await res.json();
+
+                // Bot status
+                const botEl = document.getElementById('bot-status');
+                botEl.textContent = data.bot_running ? 'Running' : 'Stopped';
+                botEl.className = 'badge ' + (data.bot_running ? 'success' : 'danger');
+
+                // Disk
+                document.getElementById('disk-text').textContent =
+                    `${data.disk.used_gb} / ${data.disk.total_gb} GB (${data.disk.percent}%)`;
+                const diskBar = document.getElementById('disk-bar');
+                diskBar.style.width = data.disk.percent + '%';
+                diskBar.className = 'fill' + (data.disk.percent > 90 ? ' danger' : data.disk.percent > 70 ? ' warn' : '');
+
+                // Memory
+                if (data.memory_percent !== null) {
+                    document.getElementById('mem-text').textContent = data.memory_percent + '%';
+                    const memBar = document.getElementById('mem-bar');
+                    memBar.style.width = data.memory_percent + '%';
+                    memBar.className = 'fill' + (data.memory_percent > 90 ? ' danger' : data.memory_percent > 70 ? ' warn' : '');
+                } else {
+                    document.getElementById('mem-text').textContent = 'N/A';
+                }
+
+            } catch (err) {
+                document.getElementById('error').textContent = 'Error: ' + err.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        fetchStatus();
+        setInterval(fetchStatus, 30000);
+    </script>
+</body>
+</html>

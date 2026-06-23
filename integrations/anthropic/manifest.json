@@ -1,0 +1,17 @@
+{
+  "name": "anthropic",
+  "label": "Anthropic API",
+  "description": "Claude API access for Claude Code CLI",
+  "category": "infrastructure",
+  "auth": {
+    "type": "api_key",
+    "env_key": "ANTHROPIC_API_KEY",
+    "setup_url": "https://console.anthropic.com/settings/keys"
+  },
+  "health": {
+    "type": "command",
+    "command": "claude --version",
+    "expect_success": true
+  },
+  "required": true
+}

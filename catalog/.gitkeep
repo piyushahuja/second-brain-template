@@ -1,0 +1,13 @@
+# Catalog
+
+Available integrations not yet installed.
+Copy manifests here for sources you want to offer but not enable by default.
+
+Example structure:
+  catalog/
+    oura/
+      manifest.json
+    google/
+      manifest.json
+
+Install action: copy manifest to integrations/, add env vars, register cron.

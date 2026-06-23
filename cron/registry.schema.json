@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cron Registry",
+  "type": "object",
+  "properties": {
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "schedule", "script", "enabled"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique job identifier"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description"
+          },
+          "schedule": {
+            "type": "string",
+            "description": "Cron expression (minute hour day month weekday)",
+            "examples": ["30 7 * * *", "0 22 * * *", "0 10 * * 0"]
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone (default: UTC)",
+            "default": "UTC"
+          },
+          "script": {
+            "type": "string",
+            "description": "Script path relative to cron/ directory"
+          },
+          "log": {
+            "type": "string",
+            "description": "Log file path"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether job is active"
+          },
+          "last_run": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last execution timestamp (auto-updated)"
+          },
+          "last_status": {
+            "type": "string",
+            "enum": ["success", "error", "timeout"],
+            "description": "Last execution result (auto-updated)"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes or prerequisites"
+          }
+        }
+      }
+    }
+  }
+}

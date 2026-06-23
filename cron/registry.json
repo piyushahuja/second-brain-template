@@ -1,0 +1,15 @@
+{
+  "$schema": "./registry.schema.json",
+  "jobs": [
+    {
+      "name": "morning-digest",
+      "description": "Daily briefing sent to Telegram",
+      "schedule": "30 7 * * *",
+      "timezone": "UTC",
+      "script": "./run-skill.sh /digest",
+      "log": "/tmp/second-brain-digest.log",
+      "enabled": false,
+      "notes": "Enable after configuring USER.md with targets"
+    }
+  ]
+}

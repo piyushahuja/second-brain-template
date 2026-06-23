@@ -1,0 +1,14 @@
+[Unit]
+Description=Second Brain Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/USER/second-brain
+EnvironmentFile=/home/USER/second-brain/deploy/.env
+ExecStart=/usr/bin/python3 /home/USER/second-brain/bot/bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
