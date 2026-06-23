@@ -71,6 +71,7 @@ from admin.routes.env import bp as env_bp
 from admin.routes.crons import bp as crons_bp
 from admin.routes.catalog import bp as catalog_bp
 from admin.routes.syncthing import bp as syncthing_bp
+from admin.routes.config import bp as config_bp
 
 app.register_blueprint(status_bp,       url_prefix='/api')
 app.register_blueprint(integrations_bp, url_prefix='/api')
@@ -79,6 +80,7 @@ app.register_blueprint(env_bp,          url_prefix='/api')
 app.register_blueprint(crons_bp,        url_prefix='/api')
 app.register_blueprint(catalog_bp,      url_prefix='/api')
 app.register_blueprint(syncthing_bp,    url_prefix='/api')
+app.register_blueprint(config_bp,       url_prefix='/api')
 
 
 if __name__ == '__main__':

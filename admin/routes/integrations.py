@@ -12,6 +12,7 @@ from admin.routes.env import write_env_key
 bp = Blueprint('integrations', __name__)
 
 _claude_auth_sessions: dict = {}
+_codex_auth_sessions:  dict = {}
 
 
 def _integration_dict(m, health):
@@ -249,3 +250,116 @@ def claude_auth_submit():
         return jsonify({'status': 'ok', 'email': data.get('email', ''), 'subscription': data.get('subscriptionType', '')})
     except Exception:
         return jsonify({'status': 'ok', 'email': ''})
+
+
+# ---------------------------------------------------------------------------
+# Codex device-auth flow
+# ---------------------------------------------------------------------------
+
+@bp.route('/integrations/codex/auth/start', methods=['POST'])
+@require_admin
+def codex_auth_start():
+    import re, time, pty, os as _os, select as _select
+
+    for s in list(_codex_auth_sessions.values()):
+        try:
+            s['proc'].kill()
+        except Exception:
+            pass
+    _codex_auth_sessions.clear()
+
+    codex_path = os.environ.get('CODEX_PATH', 'codex')
+
+    # Codex is a Node.js symlink in nvm's bin dir; realpath() would resolve it into
+    # lib/node_modules/.../bin which has no `node`. Use dirname(codex_path) to stay
+    # in the nvm bin dir where both codex and node live.
+    codex_dir = _os.path.dirname(codex_path)
+    env = {**os.environ, "PATH": codex_dir + ":" + os.environ.get("PATH", "")}
+
+    # Use a PTY so Codex line-flushes its output (pipe buffering would stall reads)
+    try:
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
+            [codex_path, 'login', '--device-auth'],
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+            env=env,
+        )
+        _os.close(slave_fd)
+    except FileNotFoundError:
+        return jsonify({'status': 'error', 'detail': 'codex CLI not found'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'detail': str(e)}), 500
+
+    ansi = re.compile(rb'\x1b\[[0-9;]*[mGKABCDEFHJK]')
+    url = code = None
+    raw_buf = b""
+    deadline = time.time() + 12
+
+    while time.time() < deadline and not (url and code):
+        try:
+            r, _, _ = _select.select([master_fd], [], [], 1.0)
+            if r:
+                chunk = _os.read(master_fd, 4096)
+                raw_buf += chunk
+                for raw_line in raw_buf.split(b'\n'):
+                    line = ansi.sub(b'', raw_line).decode('utf-8', errors='replace').strip()
+                    if 'https://' in line:
+                        for part in line.split():
+                            if part.startswith('https://'):
+                                url = part
+                    elif re.match(r'^[A-Z0-9]+-[A-Z0-9]+$', line):
+                        code = line
+        except OSError:
+            break
+        if proc.poll() is not None:
+            break
+
+    try:
+        _os.close(master_fd)
+    except OSError:
+        pass
+
+    if not url or not code:
+        proc.kill()
+        import logging as _log
+        _log.getLogger("second-brain-admin").error(
+            "codex auth failed — url=%r code=%r buf=%r pid=%s rc=%s",
+            url, code, raw_buf[:500], proc.pid, proc.poll()
+        )
+        detail = ansi.sub(b'', raw_buf[:300]).decode('utf-8', errors='replace').strip() or 'Could not read auth URL from codex'
+        return jsonify({'status': 'error', 'detail': detail}), 500
+
+    sid = uuid.uuid4().hex[:12]
+    _codex_auth_sessions[sid] = {'proc': proc}
+    return jsonify({'status': 'ok', 'session_id': sid, 'url': url, 'code': code})
+
+
+@bp.route('/integrations/codex/auth/poll', methods=['POST'])
+@require_admin
+def codex_auth_poll():
+    body = request.get_json(silent=True) or {}
+    sid  = body.get('session_id', '').strip()
+
+    if not sid:
+        return jsonify({'status': 'error', 'detail': 'session_id required'}), 400
+
+    s = _codex_auth_sessions.get(sid)
+    if not s:
+        return jsonify({'status': 'error', 'detail': 'No active session — click Login again'}), 400
+
+    ret = s['proc'].poll()
+
+    if ret is None:
+        return jsonify({'status': 'pending'})
+
+    _codex_auth_sessions.pop(sid, None)
+
+    if ret != 0:
+        return jsonify({'status': 'error', 'detail': f'codex login exited with code {ret}'})
+
+    subprocess.run(['systemctl', '--user', 'restart', 'second-brain-bot'],
+                   capture_output=True, timeout=10)
+    return jsonify({'status': 'ok'})

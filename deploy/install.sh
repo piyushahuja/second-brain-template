@@ -9,6 +9,7 @@ set -e
 #   --with-voice      Install voice transcription (Whisper + ffmpeg)
 #   --with-syncthing  Install and configure Syncthing
 #   --with-google     Set up Google OAuth (Gmail, Calendar, Drive)
+#   --with-codex      Install Codex CLI (OpenAI agent, fallback provider)
 #   --all             Install all optional components
 #   --help            Show this help message
 
@@ -23,6 +24,7 @@ WITH_ADMIN=false
 WITH_VOICE=false
 WITH_SYNCTHING=false
 WITH_GOOGLE=false
+WITH_CODEX=false
 
 for arg in "$@"; do
     case $arg in
@@ -30,10 +32,12 @@ for arg in "$@"; do
         --with-voice) WITH_VOICE=true ;;
         --with-syncthing) WITH_SYNCTHING=true ;;
         --with-google) WITH_GOOGLE=true ;;
+        --with-codex) WITH_CODEX=true ;;
         --all)
             WITH_ADMIN=true
             WITH_VOICE=true
             WITH_SYNCTHING=true
+            WITH_CODEX=true
             ;;
         --help)
             head -20 "$0" | tail -15
@@ -88,7 +92,7 @@ if ! command -v uv &> /dev/null; then
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
-uv venv "$VENV_DIR" --quiet
+uv venv "$VENV_DIR" --quiet --allow-existing 2>/dev/null || uv venv "$VENV_DIR" --quiet
 PYTHON="$VENV_DIR/bin/python3"
 
 # Core dependencies
@@ -193,6 +197,33 @@ else
     echo "Claude is not authenticated."
     echo "  Option A: Add ANTHROPIC_API_KEY to .env"
     echo "  Option B: Run: claude login"
+fi
+
+# --- Optional: Codex CLI ---
+
+if [ "$WITH_CODEX" = true ]; then
+    echo ""
+    echo "Installing Codex CLI..."
+    if ! command -v codex &> /dev/null; then
+        npm install -g @openai/codex
+    fi
+
+    CODEX_FULL_PATH=$(which codex 2>/dev/null)
+    if [ -n "$CODEX_FULL_PATH" ]; then
+        echo "Codex: $(codex --version 2>/dev/null || echo 'installed')"
+        echo "Codex path: $CODEX_FULL_PATH"
+
+        if grep -q "^CODEX_PATH=" "$SCRIPT_DIR/.env" 2>/dev/null; then
+            sed -i "s|^CODEX_PATH=.*|CODEX_PATH=$CODEX_FULL_PATH|" "$SCRIPT_DIR/.env"
+        else
+            echo "CODEX_PATH=$CODEX_FULL_PATH" >> "$SCRIPT_DIR/.env"
+        fi
+        echo "CODEX_PATH saved to .env"
+        echo ""
+        echo "Next: set CODEX_API_KEY in .env, then select Codex as fallback in the admin panel."
+    else
+        echo "Codex: not found after installation — check npm output above"
+    fi
 fi
 
 # --- Optional: Syncthing ---

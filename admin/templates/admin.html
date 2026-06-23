@@ -143,6 +143,10 @@
 
     /* Notice */
     .notice { font-size:11px; color:var(--yellow); background:rgba(251,191,36,.08); border:1px solid rgba(251,191,36,.2); border-radius:6px; padding:7px 10px; margin:10px 0; display:none; }
+
+    /* Select — matches input styling */
+    .field select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 11px; font-size:13px; color:var(--text); outline:none; cursor:pointer; }
+    .field select:focus { border-color:var(--teal); }
   </style>
 </head>
 <body>
@@ -228,6 +232,27 @@
         <span id="st-badge" class="badge badge-none">—</span>
       </div>
       <div id="syncthing-body"></div>
+    </div>
+
+    <!-- Provider selector -->
+    <div class="card" id="provider-card">
+      <div class="card-hd">AI Provider</div>
+      <div class="field">
+        <label>Default</label>
+        <select id="prov-default" onchange="saveProviders()">
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex CLI</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fallback (used when default is unavailable)</label>
+        <select id="prov-fallback" onchange="saveProviders()">
+          <option value="">None</option>
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex CLI</option>
+        </select>
+      </div>
+      <span id="prov-msg" style="font-size:12px;color:var(--muted)"></span>
     </div>
 
     <!-- Claude Code card (rendered from integrations data) -->
@@ -365,6 +390,7 @@ function nav(name) {
   if (name === 'envars')  loadEnvars();
   if (name === 'cron')    loadCron();
   if (name === 'catalog') loadCatalog();
+  if (name === 'infra')   loadProviders();
 }
 
 // handle #hash on load (e.g. after OAuth callback redirect)
@@ -522,7 +548,7 @@ function renderResources(r) {
 }
 
 // ── Integrations ──────────────────────────────────
-const INFRA_TYPES = ['cli', 'setup_token'];
+const INFRA_TYPES = ['cli', 'setup_token', 'device_auth'];
 const INFRA_NAMES = ['anthropic']; // api_key but powers the agent, not a data source
 
 function renderIntegrations(integrations) {
@@ -539,7 +565,8 @@ function renderInfraCards(items) {
   const el = document.getElementById('infra-cards');
   if (!el) return;
   el.innerHTML = items.map(i => {
-    if (i.auth_type === 'setup_token') return renderSetupTokenCard(i);
+    if (i.auth_type === 'setup_token')  return renderSetupTokenCard(i);
+    if (i.auth_type === 'device_auth')  return renderDeviceAuthCard(i);
     if (i.auth_type === 'api_key' || i.auth_type === 'personal_access_token') return renderPatCard(i);
     // cli — read-only status card
     const ok = i.status === 'ok';
@@ -549,6 +576,36 @@ function renderInfraCards(items) {
       <div style="font-size:12px;color:var(--muted)">${i.detail || ''}</div>
     </div>`;
   }).join('');
+}
+
+function renderDeviceAuthCard(i) {
+  const ok   = i.status === 'ok';
+  const bCls = ok ? 'badge-ok' : 'badge-none';
+  const bTxt = ok ? 'Active' : 'Not signed in';
+  return `<div class="card" id="card-${i.name}">
+    <div class="card-hd">${i.label}<span class="badge ${bCls}">${bTxt}</span></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">${i.description}</p>
+
+    <!-- auth panel -->
+    <div id="dauth-panel-${i.name}" style="display:none;margin-bottom:12px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:6px">1. Open this URL and sign in with your ChatGPT account:</p>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px">
+        <a id="dauth-url-${i.name}" href="#" target="_blank" style="font-size:11px;font-family:monospace;color:var(--teal);flex:1"></a>
+        <button class="btn btn-ghost" style="font-size:11px;flex-shrink:0" onclick="copyDauthUrl('${i.name}',event)">Copy</button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:6px">2. Enter this one-time code when prompted:</p>
+      <div style="font-family:monospace;font-size:18px;font-weight:700;letter-spacing:3px;color:var(--teal);margin-bottom:12px" id="dauth-code-${i.name}"></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">3. Once signed in, click Done:</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-teal" onclick="codexAuthDone('${i.name}')">Done</button>
+        <button class="btn btn-ghost" onclick="codexAuthCancel('${i.name}')">Cancel</button>
+        <span id="dauth-msg-${i.name}" style="font-size:12px"></span>
+      </div>
+    </div>
+
+    <button class="btn btn-teal" id="dauth-start-btn-${i.name}" onclick="codexAuthStart('${i.name}')">${ok ? 'Re-authenticate' : 'Login with ChatGPT'}</button>
+    <div id="dauth-err-${i.name}" style="font-size:12px;color:var(--red);margin-top:8px"></div>
+  </div>`;
 }
 
 // ── Google card ───────────────────────────────────
@@ -1079,6 +1136,157 @@ async function loadEnvars() {
         <span class="envar-key">${k}</span>
         <span class="envar-val">${v || '<span style="color:var(--muted)">—</span>'}</span>
       </div>`).join('') || '<span style="color:var(--muted)">No entries</span>';
+}
+
+// ── Codex device-auth ─────────────────────────────
+const _codexAuthSessions = {};
+let   _codexPollTimer    = null;
+
+async function codexAuthStart(name) {
+  const btn   = document.getElementById(`dauth-start-btn-${name}`);
+  const panel = document.getElementById(`dauth-panel-${name}`);
+  const msg   = document.getElementById(`dauth-msg-${name}`);
+  const err   = document.getElementById(`dauth-err-${name}`);
+
+  btn.disabled = true; btn.textContent = 'Starting…';
+  panel.style.display = 'none';
+  msg.textContent = '';
+  err.textContent = '';
+
+  try {
+    const r = await fetch(`/api/integrations/${name}/auth/start`, {
+      method: 'POST', headers: { 'X-Admin-Token': tok }
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') {
+      err.textContent = d.detail || 'Failed to start login';
+      btn.disabled = false; btn.textContent = 'Login with ChatGPT';
+      return;
+    }
+    _codexAuthSessions[name] = d.session_id;
+    document.getElementById(`dauth-url-${name}`).href        = d.url;
+    document.getElementById(`dauth-url-${name}`).textContent = d.url;
+    document.getElementById(`dauth-code-${name}`).textContent = d.code;
+    panel.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Restart';
+    msg.style.color = 'var(--muted)'; msg.textContent = 'Waiting for sign-in…';
+    // Auto-poll every 3s
+    _codexPollTimer = setInterval(() => _codexAutoPoll(name), 3000);
+  } catch {
+    err.textContent = 'Network error';
+    btn.disabled = false; btn.textContent = 'Login with ChatGPT';
+  }
+}
+
+async function _codexAutoPoll(name) {
+  const sid = _codexAuthSessions[name];
+  if (!sid) { clearInterval(_codexPollTimer); return; }
+  try {
+    const r = await fetch(`/api/integrations/${name}/auth/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ session_id: sid }),
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      clearInterval(_codexPollTimer);
+      _codexPollTimer = null;
+      _codexAuthComplete(name);
+    } else if (d.status === 'error') {
+      clearInterval(_codexPollTimer);
+      document.getElementById(`dauth-msg-${name}`).style.color = 'var(--red)';
+      document.getElementById(`dauth-msg-${name}`).textContent = d.detail || 'Auth failed';
+    }
+  } catch {}
+}
+
+async function codexAuthDone(name) {
+  const msg = document.getElementById(`dauth-msg-${name}`);
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Checking…';
+  const sid = _codexAuthSessions[name];
+  if (!sid) { msg.style.color = 'var(--red)'; msg.textContent = 'No active session'; return; }
+  try {
+    const r = await fetch(`/api/integrations/${name}/auth/poll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ session_id: sid }),
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      clearInterval(_codexPollTimer); _codexPollTimer = null;
+      _codexAuthComplete(name);
+    } else if (d.status === 'pending') {
+      msg.style.color = 'var(--yellow)'; msg.textContent = 'Still waiting — complete sign-in in browser first';
+    } else {
+      msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Failed';
+    }
+  } catch {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Network error';
+  }
+}
+
+function _codexAuthComplete(name) {
+  document.getElementById(`dauth-panel-${name}`).style.display = 'none';
+  const btn = document.getElementById(`dauth-start-btn-${name}`);
+  btn.textContent = 'Re-authenticate'; btn.disabled = false;
+  delete _codexAuthSessions[name];
+  setTimeout(refresh, 800);
+}
+
+function codexAuthCancel(name) {
+  clearInterval(_codexPollTimer); _codexPollTimer = null;
+  document.getElementById(`dauth-panel-${name}`).style.display = 'none';
+  document.getElementById(`dauth-msg-${name}`).textContent = '';
+  document.getElementById(`dauth-err-${name}`).textContent = '';
+  document.getElementById(`dauth-start-btn-${name}`).textContent = 'Login with ChatGPT';
+  delete _codexAuthSessions[name];
+}
+
+function copyDauthUrl(name, event) {
+  const url = document.getElementById(`dauth-url-${name}`).textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    event.target.textContent = 'Copied!';
+    setTimeout(() => event.target.textContent = 'Copy', 1500);
+  });
+}
+
+// ── Providers ─────────────────────────────────────
+async function loadProviders() {
+  try {
+    const r = await fetch('/api/config/providers', { headers: { 'X-Admin-Token': tok } });
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('prov-default').value  = d.default  || 'claude';
+    document.getElementById('prov-fallback').value = d.fallback || '';
+  } catch(e) {}
+}
+
+async function saveProviders() {
+  const def = document.getElementById('prov-default').value;
+  const fb  = document.getElementById('prov-fallback').value || null;
+  const msg = document.getElementById('prov-msg');
+
+  if (fb && fb === def) {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Fallback must differ from default';
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/config/providers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+      body: JSON.stringify({ default: def, fallback: fb }),
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      msg.style.color = 'var(--teal)'; msg.textContent = '✓ Saved — bot restarting';
+    } else {
+      msg.style.color = 'var(--red)'; msg.textContent = d.detail || 'Failed';
+    }
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch(e) {
+    msg.style.color = 'var(--red)'; msg.textContent = 'Network error';
+  }
 }
 
 // ── Init ──────────────────────────────────────────
