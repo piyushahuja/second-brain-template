@@ -217,103 +217,48 @@ def should_auto_reset() -> bool:
 # ---------------------------------------------------------------------------
 # Claude Code Integration
 # ---------------------------------------------------------------------------
-async def create_session() -> Optional[str]:
-    """Create a new Claude Code session."""
-    log.info("Creating new Claude session...")
-
-    # Build system prompt
-    system_prompt = f"Read CLAUDE.md, SOUL.md, and USER.md before responding. Working directory: {WORKSPACE_ROOT}"
-
+def load_system_prompt() -> str:
+    """Load system prompt from file or return default."""
     if SYSTEM_PROMPT_FILE.exists():
-        system_prompt = SYSTEM_PROMPT_FILE.read_text().strip()
-
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            CLAUDE_PATH,
-            "--print-session-id",
-            "--output-format", "json",
-            "--system-prompt", system_prompt,
-            "-p", "Read your bootstrap files (CLAUDE.md, SOUL.md, USER.md) and confirm you're ready. Be brief.",
-            cwd=WORKSPACE_ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=CLAUDE_TIMEOUT
-            )
-        except asyncio.TimeoutError:
-            proc.kill()
-            log.error(f"Session creation timed out after {CLAUDE_TIMEOUT}s")
-            return None
-
-        if proc.returncode != 0:
-            error_msg = stderr.decode().strip()
-            log.error(f"Failed to create session: {error_msg}")
-            return None
-
-        # Parse session ID from output
-        for line in stdout.decode().splitlines():
-            try:
-                data = json.loads(line)
-                if data.get("type") == "system" and "session_id" in data:
-                    session_id = data["session_id"]
-                    save_state({
-                        "session_id": session_id,
-                        "created": datetime.now(timezone.utc).isoformat(),
-                        "queries": 0,
-                    })
-                    log.info(f"Created session: {session_id}")
-                    return session_id
-            except json.JSONDecodeError:
-                continue
-
-        log.error("No session ID in output")
-        return None
-
-    except Exception as e:
-        log.error(f"Exception creating session: {e}")
-        return None
-
-
-async def get_or_create_session() -> Optional[str]:
-    """Get existing session or create new one."""
-    if should_auto_reset():
-        clear_state()
-        return await create_session()
-
-    state = load_state()
-    session_id = state.get("session_id")
-
-    if session_id:
-        return session_id
-
-    return await create_session()
+        return SYSTEM_PROMPT_FILE.read_text().strip()
+    return f"Read CLAUDE.md, SOUL.md, and USER.md before responding. Working directory: {WORKSPACE_ROOT}"
 
 
 async def query_claude(prompt: str, domain: str = "general") -> str:
     """Send a query to Claude Code and return the response."""
-    session_id = await get_or_create_session()
+    # Check if we should reset
+    if should_auto_reset():
+        clear_state()
 
-    if not session_id:
-        return "Failed to create Claude session. Check server logs or run `claude login` on the server."
+    state = load_state()
+    session_id = state.get("session_id")
 
     # Add domain context prefix
     if domain != "general" and domain in DOMAIN_CONTEXT:
         context = DOMAIN_CONTEXT[domain]
         prompt = f"[Domain: {domain} — {context}]\n\n{prompt}"
 
+    # Build command
+    cmd = [
+        CLAUDE_PATH,
+        "-p", prompt,
+        "--output-format", "json",
+        "--dangerously-skip-permissions",
+    ]
+
+    # Resume existing session or start fresh with system prompt
+    if session_id:
+        cmd.extend(["--resume", session_id])
+    else:
+        cmd.extend(["--system-prompt", load_system_prompt()])
+
     try:
         proc = await asyncio.create_subprocess_exec(
-            CLAUDE_PATH,
-            "--resume", session_id,
-            "--output-format", "stream-json",
-            "-p", prompt,
+            *cmd,
             cwd=WORKSPACE_ROOT,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env={**os.environ, "LANG": "en_US.UTF-8"},
         )
 
         try:
@@ -326,38 +271,43 @@ async def query_claude(prompt: str, domain: str = "general") -> str:
             log.error(f"Claude query timed out after {CLAUDE_TIMEOUT}s")
             return f"Request timed out after {CLAUDE_TIMEOUT} seconds. Try a simpler query."
 
-        # Update query count
-        state = load_state()
-        state["queries"] = state.get("queries", 0) + 1
-        save_state(state)
-
         if proc.returncode != 0:
             error_msg = stderr.decode().strip()
             log.error(f"Claude query failed: {error_msg}")
 
-            # Provide user-friendly error messages
-            if "auth" in error_msg.lower() or "unauthorized" in error_msg.lower():
-                return "Claude CLI authentication error. Contact admin to run `claude login` on the server."
+            # Handle session not found — clear and retry once
             if "session" in error_msg.lower() and "not found" in error_msg.lower():
                 clear_state()
                 return "Session expired. Please send your message again."
 
+            # Auth errors
+            if "auth" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                return "Claude CLI authentication error. Contact admin to run `claude login` on the server."
+
             return f"Error from Claude: {error_msg[:300]}"
 
-        # Parse streaming JSON output
-        response_parts = []
-        for line in stdout.decode().splitlines():
-            try:
-                data = json.loads(line)
-                if data.get("type") == "assistant" and "content" in data:
-                    for block in data["content"]:
-                        if block.get("type") == "text":
-                            response_parts.append(block["text"])
-            except json.JSONDecodeError:
-                continue
+        # Parse JSON output
+        try:
+            data = json.loads(stdout.decode())
+            response_text = data.get("result", "(No response)")
+            new_session_id = data.get("session_id")
 
-        return "".join(response_parts) or "No response from Claude."
+            # Save/update session state
+            save_state({
+                "session_id": new_session_id or session_id,
+                "created": state.get("created", datetime.now(timezone.utc).isoformat()),
+                "queries": state.get("queries", 0) + 1,
+            })
 
+            return response_text
+
+        except json.JSONDecodeError:
+            # Fallback: return raw output
+            return stdout.decode().strip() or "(No response)"
+
+    except FileNotFoundError:
+        log.error(f"Claude CLI not found at: {CLAUDE_PATH}")
+        return "Error: Claude CLI not found on server."
     except Exception as e:
         log.error(f"Exception querying Claude: {e}")
         return f"Something went wrong: {e}"
