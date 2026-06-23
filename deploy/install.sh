@@ -144,14 +144,34 @@ if ! command -v claude &> /dev/null; then
     npm install -g @anthropic-ai/claude-code
 fi
 
-echo "Claude: $(claude --version 2>/dev/null || echo 'not found')"
+# Find Claude path and save to .env
+CLAUDE_FULL_PATH=$(which claude 2>/dev/null)
+if [ -z "$CLAUDE_FULL_PATH" ]; then
+    # Try to find it in nvm directories
+    CLAUDE_FULL_PATH=$(find "$HOME/.nvm/versions/node" -name "claude" -type f 2>/dev/null | head -1)
+fi
+
+if [ -n "$CLAUDE_FULL_PATH" ]; then
+    echo "Claude: $($CLAUDE_FULL_PATH --version 2>/dev/null || echo 'not found')"
+    echo "Claude path: $CLAUDE_FULL_PATH"
+
+    # Add or update CLAUDE_PATH in .env
+    if grep -q "^CLAUDE_PATH=" "$SCRIPT_DIR/.env" 2>/dev/null; then
+        sed -i "s|^CLAUDE_PATH=.*|CLAUDE_PATH=$CLAUDE_FULL_PATH|" "$SCRIPT_DIR/.env"
+    else
+        echo "CLAUDE_PATH=$CLAUDE_FULL_PATH" >> "$SCRIPT_DIR/.env"
+    fi
+    echo "CLAUDE_PATH saved to .env"
+else
+    echo "Claude: not found"
+fi
 
 # --- Claude authentication ---
 
 echo ""
 if [ -n "$ANTHROPIC_API_KEY" ]; then
     echo "ANTHROPIC_API_KEY is set in .env."
-elif claude -p "" --output-format json &> /dev/null; then
+elif [ -n "$CLAUDE_FULL_PATH" ] && "$CLAUDE_FULL_PATH" -p "" --output-format json &> /dev/null; then
     echo "Claude is authenticated via ~/.claude config."
 else
     echo "Claude is not authenticated."
