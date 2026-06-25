@@ -1,0 +1,17 @@
+{
+  "name": "local_folder",
+  "label": "Local Folder",
+  "description": "A directory from the client's computer or server synced into this workspace via Syncthing",
+  "auth": {
+    "type": "file_sync",
+    "transport": "syncthing",
+    "expected_path": "raw_sources/local",
+    "max_age_hours": 72,
+    "setup_guide": "Choose any directory on the client device, add it as a Syncthing folder, and share it with this server using the Device ID shown in Infrastructure.\n\nWhen the pending folder appears in this admin panel, accept it with local path: raw_sources/local/\n\nFor multiple folders, accept each one under raw_sources/<source-name>/."
+  },
+  "health": {
+    "type": "file_exists",
+    "path": "raw_sources/local",
+    "max_age_hours": 72
+  }
+}

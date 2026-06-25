@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp",
+  "label": "WhatsApp Desktop",
+  "description": "WhatsApp Desktop data synced from a client device via Syncthing",
+  "auth": {
+    "type": "file_sync",
+    "transport": "syncthing",
+    "expected_path": "raw_sources/whatsapp/ChatStorage.sqlite",
+    "max_age_hours": 48,
+    "setup_guide": "Add the WhatsApp Desktop data directory as a Syncthing folder and share it with this server using the Device ID shown in Infrastructure.\n\nOn macOS, the usual path is: ~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/\n\nWhen the pending folder appears in this admin panel, accept it with local path: raw_sources/whatsapp/\n\nWhatsApp Desktop must be installed and have run at least once."
+  },
+  "health": {
+    "type": "file_exists",
+    "path": "raw_sources/whatsapp/ChatStorage.sqlite",
+    "max_age_hours": 48
+  }
+}

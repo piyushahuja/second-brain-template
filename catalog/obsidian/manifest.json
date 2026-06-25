@@ -1,0 +1,17 @@
+{
+  "name": "obsidian",
+  "label": "Obsidian Vault",
+  "description": "Obsidian vault synced from a client device via Syncthing",
+  "auth": {
+    "type": "file_sync",
+    "transport": "syncthing",
+    "expected_path": "raw_sources/obsidian_vault",
+    "max_age_hours": 72,
+    "setup_guide": "Choose the client's Obsidian vault directory, add it as a Syncthing folder, and share it with this server using the Device ID shown in Infrastructure.\n\nWhen the pending folder appears in this admin panel, accept it with local path: raw_sources/obsidian_vault/"
+  },
+  "health": {
+    "type": "file_exists",
+    "path": "raw_sources/obsidian_vault",
+    "max_age_hours": 72
+  }
+}

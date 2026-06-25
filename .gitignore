@@ -7,6 +7,16 @@ bot/config.yaml
 # State
 bot/state/
 
+# Synced source data
+raw_sources/*
+!raw_sources/.gitkeep
+
+# Generated outputs
+outputs/*
+!outputs/shared/
+outputs/shared/*
+!outputs/shared/.gitkeep
+
 # Logs
 *.log
 

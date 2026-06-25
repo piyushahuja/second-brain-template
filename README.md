@@ -155,14 +155,15 @@ Every data source follows one of three patterns:
 | Gmail | `raw_sources/gmail/YYYY-MM-DD.json` | OAuth2 |
 | Calendar | `raw_sources/calendar/YYYY-MM-DD.json` | OAuth2 |
 
-### Pattern C — Syncthing-delivered (Mac → VPS)
+### Pattern C — Syncthing-delivered (client device → VPS)
 
-**Flow:** Mac app → Syncthing → `raw_sources/<source>/` on VPS
+**Flow:** Client directory → Syncthing → `raw_sources/<source>/` on VPS
 
 | Source | Example path |
 |--------|--------------|
-| Obsidian vault | `raw_sources/obsidian_vault/` |
-| WhatsApp export | `raw_sources/whatsapp/` |
+| Generic local folder | `raw_sources/local/` |
+| Obsidian vault preset | `raw_sources/obsidian_vault/` |
+| WhatsApp Desktop preset | `raw_sources/whatsapp/` |
 
 ---
 
@@ -317,6 +318,7 @@ Features:
 - Service status (bot running, RAM/disk)
 - Cron job management
 - Integration health checks
+- Syncthing pairing, inbound folder acceptance, and outbound `outputs/shared` sharing
 - Environment variable viewer
 
 Secured by `ADMIN_TOKEN` header.
@@ -334,7 +336,7 @@ Optional for voice notes:
 - Whisper (`pip install openai-whisper`)
 - ffmpeg
 
-Optional for Mac sync:
+Optional for local folder sync:
 - Syncthing
 
 ---
@@ -390,6 +392,7 @@ Send to client before setup:
 - [ ] Current priorities and targets
 - [ ] Preferred communication style
 - [ ] Data sources they want connected
+- [ ] Local directories, if any, they want synced into `raw_sources/`
 - [ ] Morning/evening routine preferences
 - [ ] Key people to know about
 

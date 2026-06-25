@@ -9,8 +9,19 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-SYNCTHING_URL = 'http://localhost:8384'
+ROOT = Path(__file__).parent.parent.resolve()
+OUTPUTS_FOLDER_ID = 'outputs-shared'
 _TIMEOUT = 3
+
+
+def _syncthing_url() -> str:
+    address = os.getenv('SYNCTHING_ADDRESS', 'localhost:8384').strip() or 'localhost:8384'
+    if not address.startswith(('http://', 'https://')):
+        address = f'http://{address}'
+    return address.rstrip('/')
+
+
+SYNCTHING_URL = _syncthing_url()
 
 
 def _api_key() -> str:
@@ -96,8 +107,10 @@ def get_info() -> dict:
                 changed_at = ''
 
             folders.append({
+                'id': fid,
                 'label': label,
                 'path': path,
+                'type': fc.get('type', ''),
                 'status': sync,
                 'updated': _age(changed_at),
             })
@@ -166,6 +179,28 @@ def accept_device(device_id: str, name: str) -> bool:
         return False
 
 
+def _safe_repo_path(local_path: str, allowed_roots: tuple[str, ...]) -> Path | None:
+    raw_path = (local_path or '').strip()
+    if not raw_path:
+        return None
+
+    rel = Path(raw_path)
+    if rel.is_absolute():
+        return None
+    if '..' in rel.parts:
+        return None
+
+    resolved = (ROOT / rel).resolve()
+    for root_name in allowed_roots:
+        allowed = (ROOT / root_name).resolve()
+        try:
+            resolved.relative_to(allowed)
+            return resolved
+        except ValueError:
+            continue
+    return None
+
+
 def accept_folder(folder_id: str, label: str, local_path: str, device_id: str) -> bool:
     if not HAS_REQUESTS:
         return False
@@ -178,14 +213,65 @@ def accept_folder(folder_id: str, label: str, local_path: str, device_id: str) -
                            headers=headers, timeout=_TIMEOUT).json()
         if any(f['id'] == folder_id for f in cfg.get('folders', [])):
             return True
-        full_path = str(Path(__file__).parent.parent / local_path)
+        full_path = _safe_repo_path(local_path, ('raw_sources',))
+        if not full_path:
+            return False
+        full_path.mkdir(parents=True, exist_ok=True)
         cfg['folders'].append({
             'id': folder_id,
             'label': label,
-            'path': full_path,
+            'path': str(full_path),
             'type': 'receiveonly',
             'rescanIntervalS': 3600,
             'devices': [{'deviceID': device_id}],
+        })
+        r = requests.put(f'{SYNCTHING_URL}/rest/config', headers=headers,
+                         json=cfg, timeout=_TIMEOUT)
+        return r.ok
+    except Exception:
+        return False
+
+
+def share_outputs() -> bool:
+    if not HAS_REQUESTS:
+        return False
+    api_key = _api_key()
+    if not api_key:
+        return False
+    headers = {'X-API-Key': api_key, 'Content-Type': 'application/json'}
+    try:
+        cfg = requests.get(f'{SYNCTHING_URL}/rest/config',
+                           headers=headers, timeout=_TIMEOUT).json()
+        device_ids = [d.get('deviceID') for d in cfg.get('devices', []) if d.get('deviceID')]
+        if not device_ids:
+            return False
+
+        full_path = _safe_repo_path('outputs/shared', ('outputs/shared',))
+        if not full_path:
+            return False
+        full_path.mkdir(parents=True, exist_ok=True)
+
+        desired_devices = [{'deviceID': did} for did in device_ids]
+        for folder in cfg.get('folders', []):
+            if folder.get('id') == OUTPUTS_FOLDER_ID:
+                existing = {d.get('deviceID') for d in folder.get('devices', [])}
+                for did in device_ids:
+                    if did not in existing:
+                        folder.setdefault('devices', []).append({'deviceID': did})
+                folder['path'] = str(full_path)
+                folder['type'] = 'sendonly'
+                folder['label'] = folder.get('label') or 'Second Brain Outputs'
+                r = requests.put(f'{SYNCTHING_URL}/rest/config', headers=headers,
+                                 json=cfg, timeout=_TIMEOUT)
+                return r.ok
+
+        cfg['folders'].append({
+            'id': OUTPUTS_FOLDER_ID,
+            'label': 'Second Brain Outputs',
+            'path': str(full_path),
+            'type': 'sendonly',
+            'rescanIntervalS': 3600,
+            'devices': desired_devices,
         })
         r = requests.put(f'{SYNCTHING_URL}/rest/config', headers=headers,
                          json=cfg, timeout=_TIMEOUT)

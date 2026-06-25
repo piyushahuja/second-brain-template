@@ -453,8 +453,10 @@ function renderSyncthing(st) {
     </div>`;
   }).join('');
 
-  const noMac = st.connected_devices === 0;
+  const noClientDevice = st.connected_devices === 0;
   const pending = st.pending || {devices: [], folders: []};
+  const outputsShared = (st.folders || []).some(f =>
+    f.id === 'outputs-shared' || (f.path || '').endsWith('/outputs/shared'));
 
   const pendingHtml = [
     ...pending.devices.map(d => `
@@ -482,30 +484,45 @@ function renderSyncthing(st) {
   ].join('');
 
   const guide = `
-    <details style="margin-top:14px" ${noMac ? 'open' : ''}>
+    <details style="margin-top:14px" ${noClientDevice ? 'open' : ''}>
       <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
         <span style="font-size:10px">▶</span> Setup guide
       </summary>
       <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:2;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px">
-        <strong style="color:var(--text);display:block;margin-bottom:6px">Pairing your Mac</strong>
-        <strong style="color:var(--text)">1.</strong> Install Syncthing on Mac:
+        <strong style="color:var(--text);display:block;margin-bottom:6px">Pairing a client device</strong>
+        <strong style="color:var(--text)">1.</strong> Install Syncthing on the client device:
           <a href="https://syncthing.net/downloads/" target="_blank" style="color:var(--teal)">syncthing.net/downloads</a><br>
-        <strong style="color:var(--text)">2.</strong> Open <code style="background:var(--card);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">http://localhost:8384</code> in your Mac browser<br>
-        <strong style="color:var(--text)">3.</strong> Actions → <strong style="color:var(--text)">Add Remote Device</strong> → paste the VPS Device ID (Copy above)<br>
-        <strong style="color:var(--text)">4.</strong> On the folder to sync → Edit → Sharing → tick the VPS device → Save<br>
-        <strong style="color:var(--text)">5.</strong> A request will appear above — confirm the local path and click Accept
+        <strong style="color:var(--text)">2.</strong> Open <code style="background:var(--card);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">http://localhost:8384</code> in that device's browser<br>
+        <strong style="color:var(--text)">3.</strong> Actions → <strong style="color:var(--text)">Add Remote Device</strong> → paste the server Device ID (Copy above)<br>
+        <strong style="color:var(--text)">4.</strong> On any folder to sync → Edit → Sharing → tick this server → Save<br>
+        <strong style="color:var(--text)">5.</strong> A request will appear above — confirm a local path under <code style="background:var(--card);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">raw_sources/</code> and click Accept
       </div>
     </details>`;
 
+  const outputsHtml = `
+    <div style="margin:12px 0;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:12px;color:var(--text);margin-bottom:2px">Outputs to Client</div>
+          <div style="font-size:11px;color:var(--muted)">Share <code>outputs/shared</code> from this server as a send-only Syncthing folder.</div>
+        </div>
+        <button class="btn ${outputsShared ? 'btn-ghost' : 'btn-teal'}" style="font-size:11px;padding:4px 10px"
+          ${outputsShared || !st.total_devices ? 'disabled' : ''}
+          onclick="stShareOutputs()">${outputsShared ? 'Shared' : 'Share'}</button>
+        <span id="st-output-msg" style="font-size:11px"></span>
+      </div>
+    </div>`;
+
   body.innerHTML = `
     <div class="st-device">
-      <span style="font-size:11px;color:var(--muted);flex-shrink:0">VPS Device ID</span>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">Server Device ID</span>
       <span class="id" title="${st.device_id}">${st.device_id}</span>
       <button class="st-copy" onclick="copyDeviceId('${st.device_id}')">Copy</button>
     </div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:${folders || pendingHtml ? '12px' : '0'}">${st.connected_devices} of ${st.total_devices} devices connected</p>
     ${pendingHtml}
     ${folders}
+    ${outputsHtml}
     ${guide}`;
 }
 
@@ -527,6 +544,22 @@ async function stAcceptFolder(folderId, label, fromDevice) {
     body: JSON.stringify({ folder_id: folderId, label, local_path: localPath, device_id: fromDevice }),
   });
   if (r.ok) setTimeout(refresh, 800);
+}
+
+async function stShareOutputs() {
+  const msg = document.getElementById('st-output-msg');
+  if (msg) { msg.style.color = 'var(--muted)'; msg.textContent = 'Sharing...'; }
+  const r = await fetch('/api/syncthing/share/outputs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Token': tok },
+  });
+  if (r.ok && (await r.json()).ok) {
+    if (msg) { msg.style.color = 'var(--teal)'; msg.textContent = 'Pending on client'; }
+    setTimeout(refresh, 1200);
+  } else if (msg) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Pair a device first';
+  }
 }
 
 function copyDeviceId(id) {
@@ -799,7 +832,7 @@ function renderSetupTokenCard(i) {
 
     <!-- OAuth flow panel -->
     <div id="oauth-panel-${i.name}" style="display:none;margin-bottom:12px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
-      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">1. Open this link on your phone or Mac, signed in as the account you want to use:</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">1. Open this link on your phone or computer, signed in as the account you want to use:</p>
       <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:12px">
         <a id="oauth-link-${i.name}" href="#" target="_blank" style="font-size:11px;font-family:monospace;word-break:break-all;color:var(--teal);flex:1;line-height:1.5"></a>
         <button class="btn btn-ghost" style="flex-shrink:0;font-size:11px" onclick="copyOAuthUrl('${i.name}',event)">Copy</button>

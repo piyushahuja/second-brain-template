@@ -9,6 +9,8 @@ set -e
 #   bash bootstrap.sh --repo <url> --dir ~/second-brain --all
 #
 # All flags after --repo/--dir are forwarded to deploy/install.sh
+# If no install flags are provided, bootstrap defaults to the recommended
+# client stack: admin panel, Syncthing, and optional LLM fallback clients.
 
 REPO_URL=""
 INSTALL_DIR="$HOME/second-brain"
@@ -47,6 +49,17 @@ if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
     exit 0
 fi
 echo ""
+
+if [ ${#INSTALL_FLAGS[@]} -eq 0 ]; then
+    read -rp "Install admin panel, Syncthing, and LLM fallbacks? [Y/n] " full_stack
+    if [[ "$full_stack" != "n" && "$full_stack" != "N" ]]; then
+        INSTALL_FLAGS=(--with-admin --with-syncthing --with-codex --with-gemini --with-openrouter)
+        echo "Using recommended install flags: ${INSTALL_FLAGS[*]}"
+    else
+        echo "Using minimal install. You can add optional components later with deploy/install.sh."
+    fi
+    echo ""
+fi
 
 # ─── Collect required values ───────────────────────────────────────────────────
 
@@ -149,6 +162,15 @@ else
         echo "Warning: systemctl failed — start manually:"
         echo "  systemctl --user enable --now second-brain-bot"
     fi
+
+    if printf '%s\n' "${INSTALL_FLAGS[@]}" | grep -Eq '^--(all|with-admin)$'; then
+        if systemctl --user enable --now second-brain-admin 2>/dev/null; then
+            echo "Admin panel started (systemd)."
+        else
+            echo "Warning: admin service was installed but not started:"
+            echo "  systemctl --user enable --now second-brain-admin"
+        fi
+    fi
 fi
 
 # ─── Done ──────────────────────────────────────────────────────────────────────
@@ -175,11 +197,30 @@ echo "     $INSTALL_DIR/SOUL.md"
 echo ""
 echo "  3. Message the bot on Telegram to test it."
 echo ""
-echo "  4. For domain routing (Telegram topics):"
+if printf '%s\n' "${INSTALL_FLAGS[@]}" | grep -Eq '^--(all|with-admin)$'; then
+    echo "  4. Open the admin panel:"
+    echo "     http://localhost:${ADMIN_PORT:-8080}/admin"
+    echo ""
+    echo "  5. To sync a client folder:"
+    echo "     - Admin → Infrastructure → copy Server Device ID"
+    echo "     - On the client device, install Syncthing and add this server as a remote device"
+    echo "     - Share any local folder with the server"
+    echo "     - Back in Admin → Infrastructure, accept it under raw_sources/<source-name>"
+    echo "     - Optional: click Outputs to Client to share outputs/shared back"
+    echo ""
+    next_step=6
+else
+    next_step=4
+fi
+
+echo "  $next_step. For domain routing (Telegram topics):"
 echo "     - Create a private group → enable Forum Mode → create topics"
 echo "     - Add GROUP_CHAT_ID and TOPIC_* to deploy/.env"
 echo "     - Restart: systemctl --user restart second-brain-bot"
 echo ""
 echo "Logs:   journalctl --user -u second-brain-bot -f"
+if printf '%s\n' "${INSTALL_FLAGS[@]}" | grep -Eq '^--(all|with-admin)$'; then
+    echo "Admin:  journalctl --user -u second-brain-admin -f"
+fi
 echo "Config: $INSTALL_DIR/deploy/.env"
 echo ""

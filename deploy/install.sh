@@ -109,7 +109,7 @@ uv pip install --quiet --python "$PYTHON" python-telegram-bot pyyaml
 # Optional: Admin panel
 if [ "$WITH_ADMIN" = true ]; then
     echo "Installing admin panel dependencies..."
-    uv pip install --quiet --python "$PYTHON" flask python-dotenv
+    uv pip install --quiet --python "$PYTHON" flask python-dotenv requests
 fi
 
 # Optional: Voice transcription
@@ -308,10 +308,15 @@ if [ "$WITH_SYNCTHING" = true ]; then
         fi
     fi
     echo "Syncthing: $(syncthing --version 2>/dev/null | head -1 || echo 'not found')"
-    echo ""
-    echo "To start Syncthing:"
-    echo "  syncthing serve --no-browser"
-    echo "Then open http://localhost:8384 to configure folders."
+    if command -v syncthing &> /dev/null; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            brew services start syncthing 2>/dev/null || echo "Start manually: syncthing serve --no-browser"
+        else
+            systemctl --user enable syncthing 2>/dev/null || true
+            systemctl --user start syncthing 2>/dev/null || echo "Start manually: syncthing serve --no-browser"
+        fi
+        echo "Syncthing web UI: http://127.0.0.1:8384"
+    fi
 fi
 
 # --- Optional: Google OAuth setup ---

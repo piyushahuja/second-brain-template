@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from admin.auth import require_admin
-from admin.syncthing import accept_device, accept_folder
+from admin.syncthing import accept_device, accept_folder, share_outputs
 
 bp = Blueprint('syncthing', __name__)
 
@@ -24,3 +24,11 @@ def syncthing_accept_folder():
         body.get('device_id', ''),
     )
     return jsonify({'ok': ok})
+
+
+@bp.route('/syncthing/share/outputs', methods=['POST'])
+@require_admin
+def syncthing_share_outputs():
+    ok = share_outputs()
+    status = 'shared' if ok else 'error'
+    return jsonify({'ok': ok, 'status': status})

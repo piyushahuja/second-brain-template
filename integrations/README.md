@@ -36,7 +36,7 @@ Each subdirectory represents an installed data source or infrastructure componen
 | `api_key` | Static API key | Anthropic, OpenAI |
 | `personal_access_token` | User-generated token | Oura, GitHub |
 | `oauth2` | OAuth2 flow | Google, Zoom |
-| `file_sync` | Syncthing-based | Obsidian, WhatsApp |
+| `file_sync` | Syncthing-based | Local folder, Obsidian, WhatsApp |
 | `setup_token` | One-time setup | Claude Code |
 
 ## Health Check Types

@@ -111,7 +111,7 @@ def _check_file_sync(auth: dict, health: dict) -> dict:
     age_h = (datetime.now(tz=timezone.utc) - mtime).total_seconds() / 3600
     max_age = health.get('max_age_hours', auth.get('max_age_hours', 48))
     if age_h > max_age:
-        return {'status': 'stale', 'detail': f'Last updated {int(age_h)}h ago — check Syncthing on Mac'}
+        return {'status': 'stale', 'detail': f'Last updated {int(age_h)}h ago — check Syncthing on the client device'}
     return {'status': 'ok', 'detail': f'Updated {int(age_h)}h ago'}
 
 
