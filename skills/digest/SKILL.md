@@ -1,3 +1,14 @@
+---
+name: digest
+description: >
+  Generate a daily morning briefing covering domain status, logged data,
+  priorities, and upcoming schedule. Use this skill when the user sends
+  /digest, asks for a morning update, daily summary, or briefing — or
+  when triggered automatically by a scheduled cron job.
+compatibility: Claude Code with access to raw_sources/ and USER.md
+allowed-tools: Read Bash
+---
+
 # Skill: digest
 
 Daily briefing with status across all domains.

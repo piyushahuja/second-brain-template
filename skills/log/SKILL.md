@@ -1,3 +1,15 @@
+---
+name: log
+description: >
+  Log structured data to the daily tracker (raw_sources/tracker/YYYY-MM-DD.json).
+  Use this skill when the user sends trackable data — weight, exercise, meals,
+  mood, work hours, spending, or any domain metric — whether via /log command
+  or as natural language in a domain topic. Merges into existing data, never
+  overwrites unrelated fields.
+compatibility: Claude Code with access to raw_sources/tracker/
+allowed-tools: Read Write
+---
+
 # Skill: log
 
 Log structured data to the daily tracker.

@@ -1,3 +1,14 @@
+---
+name: status
+description: >
+  Show a quick status check for one domain or all domains — what was logged
+  today, what's missing, and 7-day trends compared to targets in USER.md.
+  Use this skill when the user sends /status, asks "how am I doing", "what
+  have I logged today", or wants to check progress against their goals.
+compatibility: Claude Code with access to raw_sources/ and USER.md
+allowed-tools: Read
+---
+
 # Skill: status
 
 Quick status check for a domain or all domains.
